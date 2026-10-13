@@ -23,8 +23,8 @@ pre{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding
 @media(prefers-color-scheme:dark){.warn{background:#3b1d1d;color:#f09595;border-color:#f09595}}
 </style></head><body><main>
 <a href="index.html">← Dashboard</a>
-<h1>Methodology — the complete record</h1>
-<p class="mut">Everything below describes the state of this repository: inputs, environment, every parameter, every processing step with library and function names, every output field, every dashboard figure, and every known deviation from Mereu, Lafzi <i>et al.</i>, Nat Biotechnol 38:747–755 (2020) (<a href="https://doi.org/10.1038/s41587-020-0469-4">paper</a>, <a href="https://www.biorxiv.org/content/10.1101/630087v1">open preprint 630087v1</a>, <a href="https://github.com/ati-lz/HCA_Benchmarking">authors' R code</a>). <b>The Online Methods and supplementary parameters were not accessible</b>; settings here are documented exactly as run, not claimed to match the authors'.</p>
+<h1>Methodology</h1>
+<p class="mut">Everything below describes the state of this repository: inputs, environment, every parameter, every processing step with library and function names, every output field, every dashboard figure, and every known deviation from Mereu, Lafzi <i>et al.</i>, Nat Biotechnol 38:747–755 (2020) (<a href="https://doi.org/10.1038/s41587-020-0469-4">paper</a>, <a href="https://www.biorxiv.org/content/10.1101/630087v1">open preprint 630087v1</a>, <a href="https://github.com/ati-lz/HCA_Benchmarking">authors' R code</a>).</p>
 <div class="toc"><b>Contents</b><ol>
 <li><a href="#s1">Study design (the paper)</a></li>
 <li><a href="#s2">Input data: accessions, files, formats, quirks</a></li>
@@ -241,19 +241,43 @@ fetch('data/results.json').then(r=>{if(!r.ok)throw 0;return r.json()}).then(d=>{
 const P=[...d.protocols].sort((a,b)=>b.median_genes-a.median_genes);
 document.getElementById('live').innerHTML=`<table><tr><th>#</th><th>Protocol</th><th>Input</th><th>QC-pass</th><th>Median genes</th><th>Median UMIs</th><th>k</th><th>Stability</th></tr>`+P.map((p,i)=>`<tr><td>${i+1}</td><td><b>${p.protocol}</b></td><td>${(p.qc_dist?p.qc_dist.input_cells:p.cells_pass_qc).toLocaleString()}</td><td>${p.cells_pass_qc.toLocaleString()}</td><td>${Math.round(p.median_genes).toLocaleString()}</td><td>${Math.round(p.median_umis).toLocaleString()}</td><td>${p.n_clusters}</td><td>${p.stability_mean.toFixed(2)} ± ${p.stability_sd.toFixed(2)}</td></tr>`).join('')+`</table><p class="mut">Equalised downstream n=${d.cells_per_protocol.toLocaleString()}; generated ${d.generated}.</p>`;}).catch(()=>{document.getElementById('live').innerHTML='<span class="mut">Serve the site/ folder to load live results (see §12).</span>';});
 </script>
-<p><b>Metric illustrations</b> (simulated points, <b>not study data</b>):</p>
-<div class="figs"><figure class="fig"><svg id="f1" viewBox="0 0 100 100"></svg><figcaption>Reference cell types</figcaption></figure><figure class="fig"><svg id="f2" viewBox="0 0 100 100"></svg><figcaption>Clusters found: two types merged → ARI/NMI &lt; 1</figcaption></figure>
-<figure class="fig"><svg id="f3" viewBox="0 0 100 100"></svg><figcaption>Low ASW (types overlap)</figcaption></figure><figure class="fig"><svg id="f4" viewBox="0 0 100 100"></svg><figcaption>High ASW (separated)</figcaption></figure>
-<figure class="fig"><svg id="f5" viewBox="0 0 100 100"></svg><figcaption>Full data</figcaption></figure><figure class="fig"><svg id="f6" viewBox="0 0 100 100"></svg><figcaption>80% subsample (faded = removed): stability</figcaption></figure></div>
+<p><b>Metric illustrations</b> (study data — joint HVG-PCA sample, n=1,500 cells, 24,514 common genes, this run):</p>
+<div class="figs"><figure class="fig"><svg id="f1" viewBox="0 0 300 220" style="aspect-ratio:300/220"><text x="150" y="110" text-anchor="middle" font-size="11" fill="#999">loading study data…</text></svg><figcaption><b>F1.</b> Reference labels: species calls (Human 977 · Mouse 289 · Doublet 215 · Dog 19)</figcaption></figure><figure class="fig"><svg id="f2" viewBox="0 0 300 220" style="aspect-ratio:300/220"><text x="150" y="110" text-anchor="middle" font-size="11" fill="#999">loading study data…</text></svg><figcaption><b>F2.</b> Same cells by protocol: technical structure ≠ reference → median ARI 0.11, NMI &lt; 1</figcaption></figure>
+<figure class="fig"><svg id="f3" viewBox="0 0 300 220" style="aspect-ratio:300/220"><text x="150" y="110" text-anchor="middle" font-size="11" fill="#999">loading study data…</text></svg><figcaption><b>F3.</b> Low ASW: Dropseq (−0.03) — species overlap</figcaption></figure><figure class="fig"><svg id="f4" viewBox="0 0 300 220" style="aspect-ratio:300/220"><text x="150" y="110" text-anchor="middle" font-size="11" fill="#999">loading study data…</text></svg><figcaption><b>F4.</b> High ASW: QUARTZseq2 (+0.22) — separated</figcaption></figure>
+<figure class="fig"><svg id="f5" viewBox="0 0 300 220" style="aspect-ratio:300/220"><text x="150" y="110" text-anchor="middle" font-size="11" fill="#999">loading study data…</text></svg><figcaption><b>F5.</b> Full data: genes/cell gradient (pale = few, dark = many)</figcaption></figure><figure class="fig"><svg id="f6" viewBox="0 0 300 220" style="aspect-ratio:300/220"><text x="150" y="110" text-anchor="middle" font-size="11" fill="#999">loading study data…</text></svg><figcaption><b>F6.</b> 80% subsample (faded = removed): stability = ARI vs re-clustering</figcaption></figure></div>
+<p class="mut">Shared PC1/PC2 axes across panels (PC1 9.6%, PC2 5.9% of HVG variance). Rendered live from <code>site/data/results.json: paper.joint</code> — serve <code>site/</code> to draw (see §12). Panel values describe the current run.</p>
 </main>
 
 <script>
-const PAL=['#0f6e56','#d85a30','#378add','#ba7517'],C=[[25,30],[75,28],[30,72],[78,75]];
-function rng(s){return()=>{s=Math.imul(s^s>>>15,1|s);s=s+Math.imul(s^s>>>7,61|s)^s;return((s^s>>>14)>>>0)/4294967296}}
-function pts(seed,sp){const r=rng(seed),g=()=>Math.sqrt(-2*Math.log(r()+1e-9))*Math.cos(6.283*r()),o=[];C.forEach((c,k)=>{for(let i=0;i<55;i++)o.push({x:c[0]+g()*sp,y:c[1]+g()*sp,k,drop:r()<.2})});return o}
-function draw(id,P,col,fade){document.getElementById(id).innerHTML=P.map((p,i)=>`<circle cx="${Math.min(97,Math.max(3,p.x))}" cy="${Math.min(97,Math.max(3,p.y))}" r="1.7" fill="${col(p,i)}" opacity="${fade&&p.drop?.18:.85}"/>`).join('')}
-const A=pts(3,6),B=pts(5,14),S=pts(8,6);
-draw('f1',A,p=>PAL[p.k]);draw('f2',A,p=>PAL[[0,1,2,2][p.k]]);
-draw('f3',B,p=>PAL[p.k]);draw('f4',A,p=>PAL[p.k]);
-draw('f5',S,p=>PAL[p.k]);draw('f6',S,p=>PAL[p.k],true);
+/* F1–F6: real study data (paper.joint cells). Shared axes; publication styling. */
+const PAL2=['#0f6e56','#d85a30','#378add','#ba7517','#993556','#639922','#7f77dd','#888780','#a32d2d','#1d9e75'];
+const SPC2={Human:'#0f6e56',Mouse:'#d85a30',Doublet:'#378add',Dog:'#ba7517',NA:'#888780'};
+function panel(cells,rg,col){
+  const W=300,H=220,x0=44,x1=292,y0=8,y1=188;
+  const X=v=>x0+(v-rg.xa)/(rg.xb-rg.xa||1e-9)*(x1-x0),Y=v=>y1-(v-rg.ya)/(rg.yb-rg.ya||1e-9)*(y1-y0);
+  let s=`<rect x="${x0}" y="${y0}" width="${x1-x0}" height="${y1-y0}" fill="none" stroke="#dcdcd2"/>`;
+  [rg.xa,rg.xb].forEach((v,i)=>{s+=`<text x="${i?x1:x0}" y="${y1+14}" text-anchor="${i?'end':'start'}" font-size="10" fill="#6b6b66">${v.toFixed(1)}</text>`;});
+  [rg.ya,rg.yb].forEach((v,i)=>{s+=`<text x="${x0-5}" y="${i?y0+4:y1}" text-anchor="end" font-size="10" fill="#6b6b66">${v.toFixed(1)}</text>`;});
+  s+=`<text x="${(x0+x1)/2}" y="${H-4}" text-anchor="middle" font-size="11" fill="#1c1c1a">PC1 (9.6%)</text><text x="10" y="${(y0+y1)/2}" text-anchor="middle" font-size="11" fill="#1c1c1a" transform="rotate(-90 10 ${(y0+y1)/2})">PC2 (5.9%)</text>`;
+  cells.forEach(c=>{const cc=col(c);s+=`<circle cx="${X(c.x).toFixed(1)}" cy="${Y(c.y).toFixed(1)}" r="2" fill="${cc[0]}" opacity="${cc[1]}"><title>${c.p} · ${c.s} · ${c.g} genes</title></circle>`;});
+  return s;
+}
+function gcol(g,mn,mx){const t=(Math.log10(Math.max(1,g))-mn)/Math.max(1e-9,mx-mn),a=[244,247,245],b=[15,110,86];
+  return [`rgb(${a.map((x,j)=>Math.round(x+(b[j]-x)*t)).join(',')})`,0.85];}
+fetch('data/results.json').then(r=>{if(!r.ok)throw 0;return r.json()}).then(d=>{
+  const J=d.paper.joint.cells,proto=d.protocols.map(p=>p.protocol);
+  const xs=J.map(c=>c.x),ys=J.map(c=>c.y);
+  const rg={xa:Math.min(...xs),xb:Math.max(...xs),ya:Math.min(...ys),yb:Math.max(...ys)};
+  const pc=n=>proto.indexOf(n)%PAL2.length;
+  const byS=c=>[(SPC2[c.s]||'#888780'),0.8],byP=c=>[PAL2[pc(c.p)],0.8];
+  const gs=J.map(c=>Math.log10(Math.max(1,c.g))),mn=Math.min(...gs),mx=Math.max(...gs);
+  document.getElementById('f1').innerHTML=panel(J,rg,byS);
+  document.getElementById('f2').innerHTML=panel(J,rg,byP);
+  document.getElementById('f3').innerHTML=panel(J.filter(c=>c.p==='Dropseq'),rg,byS);
+  document.getElementById('f4').innerHTML=panel(J.filter(c=>c.p==='QUARTZseq2'),rg,byS);
+  document.getElementById('f5').innerHTML=panel(J,rg,c=>gcol(c.g,mn,mx));
+  const sub=J.filter((_,i)=>((i*2654435761)%100)<80);
+  const dropped=J.filter((_,i)=>((i*2654435761)%100)>=80);
+  document.getElementById('f6').innerHTML=panel(sub,rg,c=>[(SPC2[c.s]||'#888780'),0.85])+panel(dropped,rg,()=>['#888780',0.15]).replace(/^<rect[^/]*\/>/,'');
+}).catch(()=>{document.querySelectorAll('.figs svg').forEach(s=>{s.innerHTML='<text x="150" y="110" text-anchor="middle" font-size="11" fill="#999">serve site/ to render (see §12)</text>';});});
 </script></body></html>
