@@ -1,0 +1,20 @@
+# Main config. Edit after inspecting the SubSeries files you download (see README).
+metadata: data/synthetic/metadata.csv      # index = cell barcode; needs the celltype column
+celltype_col: celltype
+matrix_dir: data/synthetic/m       # one file or 10x folder per protocol, named <protocol>
+orientation: auto
+protocols: []                    # empty = everything found in matrix_dir
+output: site/data/demo.json
+mito_prefixes: ["MT-", "MT."]    # case-insensitive; matches human/mouse mitochondrial genes
+min_genes: 50
+max_mito_pct: 20
+min_cells: 3
+equalize_cells: true             # subsample every protocol to the same cell number (fair comparison)
+max_cells: 400
+n_hvg: 2000
+n_pcs: 30
+knn: 15
+resolution: 1.0
+stability_repeats: 3
+tsne_cells: 300
+seed: 0

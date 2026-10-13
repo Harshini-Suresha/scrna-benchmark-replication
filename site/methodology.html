@@ -1,0 +1,252 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Methodology: scRNA-seq benchmark replication (full detail)</title>
+<style>
+:root{--bg:#fafaf8;--fg:#1c1c1a;--mut:#6b6b66;--card:#fff;--bd:#e3e2dc;--ac:#0f6e56;--soft:#e1f5ee}
+@media(prefers-color-scheme:dark){:root{--bg:#161614;--fg:#ecebe6;--mut:#9a9992;--card:#20201d;--bd:#34332f;--ac:#5dcaa5;--soft:#12332a}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.65 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:920px;margin:auto;padding:28px 18px 70px}h1{font-size:28px;margin:6px 0}h2{font-size:21px;margin:44px 0 8px;padding-top:8px;border-top:1px solid var(--bd)}h3{font-size:16px;margin:22px 0 6px}h4{font-size:14px;margin:14px 0 4px}
+a{color:var(--ac)}.mut{color:var(--mut);font-size:14px}.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px 16px;margin:10px 0}
+.lead{font-size:18px}.steps{display:grid;gap:0}.step{display:grid;grid-template-columns:44px 1fr;gap:14px;position:relative;padding-bottom:18px}
+.step:not(:last-child)::before{content:"";position:absolute;left:21px;top:44px;bottom:0;width:2px;background:var(--bd)}
+.num{width:44px;height:44px;border-radius:50%;background:var(--ac);color:#fff;display:grid;place-items:center;font-weight:700;flex:none}
+.step p{margin:2px 0}.tag{font-size:13px;color:var(--mut)}.tag b{color:var(--fg)}
+.figs{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin:12px 0}
+.fig svg{width:100%;aspect-ratio:1;background:var(--soft);border-radius:10px;display:block}.fig figcaption{font-size:14px;margin-top:6px}
+.note{border-left:3px solid var(--ac)}code{background:var(--bd);padding:1px 5px;border-radius:4px;font-size:13.5px;font-family:ui-monospace,Menlo,monospace}
+pre{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px 14px;overflow-x:auto;font-size:13px;line-height:1.55}
+.comp{display:flex;height:34px;border-radius:8px;overflow:hidden}.comp i{display:grid;place-items:center;color:#fff;font:600 12px system-ui}table{width:100%;border-collapse:collapse;font-size:13.5px}th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--bd);vertical-align:top}th{color:var(--mut)}.wrap{overflow-x:auto}
+.toc{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px 18px;margin:14px 0}.toc ol{margin:6px 0;padding-left:22px}.toc li{margin:2px 0;font-size:14.5px}
+.formula{background:var(--soft);border-radius:8px;padding:8px 14px;margin:8px 0;font-family:ui-monospace,Menlo,monospace;font-size:14px;overflow-x:auto}
+.kv td:first-child{white-space:nowrap;font-weight:600;width:220px}
+.warn{background:#fcebeb;border:1px solid #a32d2d;color:#a32d2d;border-radius:10px;padding:10px 14px;margin:12px 0;font-weight:600}
+@media(prefers-color-scheme:dark){.warn{background:#3b1d1d;color:#f09595;border-color:#f09595}}
+</style></head><body><main>
+<a href="index.html">← Dashboard</a>
+<h1>Methodology — the complete record</h1>
+<p class="mut">Everything below describes the state of this repository: inputs, environment, every parameter, every processing step with library and function names, every output field, every dashboard figure, and every known deviation from Mereu, Lafzi <i>et al.</i>, Nat Biotechnol 38:747–755 (2020) (<a href="https://doi.org/10.1038/s41587-020-0469-4">paper</a>, <a href="https://www.biorxiv.org/content/10.1101/630087v1">open preprint 630087v1</a>, <a href="https://github.com/ati-lz/HCA_Benchmarking">authors' R code</a>). <b>The Online Methods and supplementary parameters were not accessible</b>; settings here are documented exactly as run, not claimed to match the authors'.</p>
+<div class="toc"><b>Contents</b><ol>
+<li><a href="#s1">Study design (the paper)</a></li>
+<li><a href="#s2">Input data: accessions, files, formats, quirks</a></li>
+<li><a href="#s3">Environment: language, libraries, versions</a></li>
+<li><a href="#s4">Configuration reference (every key)</a></li>
+<li><a href="#s5">Pipeline scripts, in order</a></li>
+<li><a href="#s6">Analysis internals: formulas and algorithms</a></li>
+<li><a href="#s7">Outputs: results.json schema and friends</a></li>
+<li><a href="#s8">Dashboard: every tab and figure (R1–R9)</a></li>
+<li><a href="#s9">Metric definitions</a></li>
+<li><a href="#s10">Paper vs replication map (Figs. 1–6)</a></li>
+<li><a href="#s11">Limitations and known artefacts</a></li>
+<li><a href="#s12">Reproduce it / extend it</a></li>
+<li><a href="#s13">Results snapshot (live data)</a></li>
+</ol></div>
+
+<h2 id="s1">1. Study design (the paper)</h2>
+<p>A single reference sample was prepared in one batch (250,000 viable cells per 0.5 ml aliquot), cryopreserved, and distributed to the partners. Design composition (% of viable cells):</p>
+<div class="card"><div class="comp"><i style="width:60%;background:#0f6e56">PBMC 60%</i><i style="width:30%;background:#378add">colon 30%</i><i style="width:6%;background:#d85a30" title="HEK293T 6%"></i><i style="width:3%;background:#ba7517" title="NIH3T3 3%"></i><i style="width:1%;background:#993556" title="MDCK 1%"></i></div>
+<p class="mut" style="margin:8px 0 0">Human PBMC 60% · mouse colon 30% · HEK293T 6% (human, RFP-labelled) · NIH3T3 3% (mouse, GFP-labelled) · MDCK 1% (dog, TurboFP650-labelled). Mixed species allow doublet exclusion; spiked-in lines expose batch/capture bias. Expected species mix per protocol (paper Fig. 1): human 63–95%, mouse 4–34%, dog 1–9%.</p></div>
+<p><b>13 sc/snRNA-seq protocols</b> (~3,000 cells each; 5 plate-based, 7 microfluidic — 4 droplet, 1 nanowell, 2 integrated fluidic circuit C1HT-small/medium — plus 1 single-nucleus experiment), plus a large Chromium V2 reference (30,807 human + 19,749 mouse cells) used <i>only</i> to define cell types and markers (Table S2), never to score protocols. Downsampling standard: <b>20,000 reads/cell</b> (lowest first quartile) via the <code>zUMIs</code> downsampling function, plus stepwise 25/50/75% fractions and equal cell numbers. Stratified cell types for human: HEK293T, monocytes, B cells; mouse: secretory and transit-amplifying (TA) colon cells.</p>
+
+<h2 id="s2">2. Input data: accessions, files, formats, quirks</h2>
+<h3>2.1 Where the data live</h3>
+<p>GSE133549 is a <b>SuperSeries with no files of its own</b>; count matrices live in 15 per-protocol SubSeries (plus GSE141469 for 10X V3). Base URL pattern:</p>
+<pre>https://ftp.ncbi.nlm.nih.gov/geo/series/{PREFIX}nnn/{ACC}/suppl/
+# e.g. PREFIX=GSE133, ACC=GSE133540 ; GSE141469 uses PREFIX=GSE141</pre>
+<p>Each SubSeries ships 4 gzipped TSVs: <code>{ACC}_{PROTO}_human_exp_mat.tsv.gz</code>, <code>…_human_metada.tsv.gz</code> (note the authors' truncation, single "t"), and the mouse pair. This repo processes the <b>human</b> matrices only (largest table per SubSeries, picked automatically — §5.2).</p>
+<h3>2.2 Processed matrices (data/processed/)</h3>
+<div class="card wrap"><table>
+<tr><th>File</th><th>SubSeries</th><th>Genes (rows)</th><th>Cells (cols)</th><th>Note</th></tr>
+<tr><td>10X_2x5K_250K.tsv.gz</td><td>GSE133535</td><td>38,418</td><td>10,000</td><td>Chromium V2, deep</td></tr>
+<tr><td>10X_8x10K_25K.tsv.gz</td><td>GSE133536</td><td>39,689</td><td>80,000</td><td>Chromium V2, shallow; largest file (~147 MB gz)</td></tr>
+<tr><td>C1HT_medium.tsv.gz</td><td>GSE133537</td><td>41,790</td><td>5,600</td><td>Read counts (non-UMI)</td></tr>
+<tr><td>C1HT_small.tsv.gz</td><td>GSE133538</td><td>39,588</td><td>6,400</td><td>Read counts (non-UMI)</td></tr>
+<tr><td>CELseq2.tsv.gz</td><td>GSE133539</td><td>41,289</td><td>2,880</td><td>UMI</td></tr>
+<tr><td>Dropseq.tsv.gz</td><td>GSE133540</td><td>33,921</td><td>6,000</td><td>UMI</td></tr>
+<tr><td>ICELL8.tsv.gz</td><td>GSE133541</td><td>34,271</td><td>3,928</td><td>Read counts (non-UMI)</td></tr>
+<tr><td>MARSseq.tsv.gz</td><td>GSE133542</td><td>34,408</td><td>2,304</td><td>UMI</td></tr>
+<tr><td>QUARTZseq2.tsv.gz</td><td>GSE133543</td><td>36,595</td><td>3,070</td><td>UMI</td></tr>
+<tr><td>gmSCRBseq.tsv.gz</td><td>GSE133544</td><td>34,733</td><td>3,455</td><td>UMI</td></tr>
+<tr><td>SMARTseq2.tsv.gz</td><td>GSE133545</td><td>44,120</td><td>2,992</td><td>Read counts (non-UMI)</td></tr>
+<tr><td>SingleNuclei.tsv.gz</td><td>GSE133546</td><td>33,455</td><td>6,000</td><td>snRNA-seq, UMI</td></tr>
+<tr><td>ddSEQ.tsv.gz</td><td>GSE133547</td><td>33,895</td><td>4,000</td><td>UMI</td></tr>
+<tr><td>inDrop.tsv.gz</td><td>GSE133548</td><td>28,880</td><td>2,988</td><td>UMI</td></tr>
+<tr><td>10X_V3.tsv.gz</td><td>GSE141469</td><td>39,202</td><td>9,035</td><td>Chromium V3; postdates the paper, unranked</td></tr>
+</table></div>
+<h3>2.2b Mouse track</h3>
+<p>The same 15 SubSeries ship mouse colon matrices (<code>…_mouse_exp_mat.tsv.gz</code>), prepared with <code>PROCESSED_DIR=data/processed_mouse SPECIES=mouse</code> into an identical per-protocol layout and analysed with <code>config.mouse.yaml</code> (same parameters; output <code>site/data/results_mouse.json</code> + <code>.js</code> fallback). The dashboard's <b>Human/Mouse toggle</b> switches datasets without reload. Gene IDs are <code>ENSMUSG…</code> (same mito-prefix artefact); paper Fig. 6 ranks shown on mouse views are human-derived.</p>
+<h3>2.3 Format quirks (load-bearing)</h3>
+<ul>
+<li><b>No corner cell:</b> the header line holds <i>N</i> barcodes while data lines hold a gene ID + <i>N</i> counts. <code>pandas.read_csv(..., index_col=0)</code> resolves this correctly (index name = first barcode, gene IDs as index); naive <code>usecols=[0]</code> reads mistake the first count column for row names.</li>
+<li><b>Gene identifiers are ENSEMBL IDs with versions</b> (e.g. <code>ENSG00000000003.14</code>), not symbols — so the <code>MT-</code>/<code>MT.</code> mitochondrial prefix match finds nothing (§11).</li>
+<li><b>Integer UMI/read counts</b> (verified: all values integral) — raw, unnormalised, as the pipeline assumes.</li>
+<li><b>Metadata has no cell-type labels.</b> Columns are QC/mapping metrics (<code>nTReads, nExonReads, nIntronReads, nIntergenicReads, nUnmappedReads, nAmbiguityReads, nMultimapReads, nUMIs, nGenes, Species, Library, Donor, nVars, is_cell_control, total_features_by_counts, …</code>). Hence <code>label_coverage = 0</code> and ARI/NMI/silhouette are skipped until an external <code>data/metadata.csv</code> (index = cell barcode, column <code>celltype</code>) is supplied; the authors' labeller is <a href="https://github.com/elimereu/matchSCore2">matchSCore2</a>.</li>
+</ul>
+
+<h2 id="s3">3. Environment: language, libraries, versions</h2>
+<p>Python <b>3.9.6</b> (<code>/usr/bin/python3</code>), isolated virtualenv <code>.venv</code> built by <code>bash run.sh setup</code> (<code>python3 -m venv .venv</code>, then <code>pip install -r requirements.txt</code>). Deliberately <b>no compiled single-cell stack</b> (no scanpy/seurat) — every step below uses only:</p>
+<div class="card wrap"><table class="kv">
+<tr><th>Library (version)</th><th>Used for (exact API)</th></tr>
+<tr><td>numpy 2.0.2</td><td>RNG (<code>default_rng(seed)</code>), subsampling (<code>rng.choice</code>), medians/percentiles, log/standardisation arithmetic</td></tr>
+<tr><td>pandas 2.3.3</td><td>Chunked TSV reading (<code>read_csv(..., chunksize=1000/2000)</code>), metadata reindexing, composition <code>value_counts</code></td></tr>
+<tr><td>scipy 1.13.1</td><td>Sparse cells×genes matrices (<code>scipy.sparse.csr_matrix</code>, <code>vstack</code>), 10x MTX reading (<code>scipy.io.mmread</code>)</td></tr>
+<tr><td>scikit-learn 1.6.1</td><td>PCA via <code>TruncatedSVD(n_components, random_state)</code>, kNN graph (<code>kneighbors_graph(k, include_self=False)</code>), t-SNE (<code>TSNE(n_components=2, perplexity, init="pca", random_state)</code>), metrics (<code>adjusted_rand_score, normalized_mutual_info_score, silhouette_score</code>); UMAP only if umap-learn present (see next row)</td></tr>
+<tr><td>umap-learn 0.5.12 (optional)</td><td><code>UMAP(n_components=2, random_state)</code> on the 30-PC embedding. Import is guarded: without it the pipeline still runs and stores <code>umap: null</code>.</td></tr>
+<tr><td>networkx 3.2.1</td><td>Graph (<code>from_scipy_sparse_array</code> on the symmetrised kNN graph) + Louvain (<code>community.louvain_communities(G, resolution, seed)</code>)</td></tr>
+<tr><td>PyYAML 6.0.3</td><td><code>yaml.safe_load</code> of <code>config.yaml</code> / <code>config.synthetic.yaml</code></td></tr>
+</table></div>
+<p class="mut">Stdlib only otherwise (<code>json, glob, os, sys, datetime, tarfile, shutil</code>). Dev-only: pypdf (paper text extraction) and Pillow (docs) are not needed to run the pipeline. Known numerical note: <code>TruncatedSVD</code>'s randomized solver prints <code>RuntimeWarning</code> overflow/invalid lines on these matrices; output is unaffected (all protocols complete, metrics finite).</p>
+
+<h2 id="s4">4. Configuration reference (every key)</h2>
+<p><code>config.yaml</code> (real data) and <code>config.synthetic.yaml</code> (smoke test; smaller <code>min_genes/max_cells/tsne_cells/repeats</code>) share these keys:</p>
+<div class="card wrap"><table class="kv">
+<tr><th>Key (default)</th><th>Meaning</th></tr>
+<tr><td>metadata (<code>data/metadata.csv</code>)</td><td>Label file; index = cell barcode, needs column <code>celltype_col</code>. Absent → label metrics skipped (current state).</td></tr>
+<tr><td>celltype_col (<code>celltype</code>)</td><td>Label column name inside metadata.</td></tr>
+<tr><td>matrix_dir (<code>data/processed</code>)</td><td>One file or 10x folder per protocol; basename minus extension = protocol name.</td></tr>
+<tr><td>orientation (<code>auto</code>)</td><td><code>genes_by_cells | cells_by_genes | auto</code> (auto: rows&gt;cols ⇒ genes×cells, then transposed).</td></tr>
+<tr><td>protocols (<code>[]</code>)</td><td>Empty = every entry in <code>matrix_dir</code>; else an allow-list.</td></tr>
+<tr><td>output (<code>site/data/results.json</code>)</td><td>JSON written at the end; a same-named <code>.js</code> fallback is auto-written beside it.</td></tr>
+<tr><td>mito_prefixes (<code>["MT-","MT."]</code>)</td><td>Case-insensitive gene-symbol prefixes for the mito filter — inert on ENSEMBL IDs.</td></tr>
+<tr><td>min_genes (200) / max_mito_pct (20) / min_cells (3)</td><td>QC gates: per-cell genes ≥ 200, mito % ≤ 20, per-gene expressing cells ≥ 3.</td></tr>
+<tr><td>equalize_cells (true) / max_cells (5000)</td><td>Every protocol subsampled without replacement to min(QC-pass counts, 5000).</td></tr>
+<tr><td>n_hvg (2000) / n_pcs (30) / knn (15) / resolution (1.0)</td><td>Top-variance genes → SVD components (capped at genes−1) → kNN degree → Louvain granularity.</td></tr>
+<tr><td>stability_repeats (5) / tsne_cells (1500) / seed (0)</td><td>80%-subsample repeats; t-SNE cell cap; master seed for RNG, SVD, Louvain, t-SNE.</td></tr>
+</table></div>
+
+<h2 id="s5">5. Pipeline scripts, in order</h2>
+<div class="steps">
+<div class="step"><div class="num">0</div><div><h3><code>run.sh</code> — one entry point</h3><p><code>setup | download | prepare | inspect | analyse | test | serve</code>. <code>serve</code> runs <code>python -m http.server -d site 8000</code> (serve <code>site/</code>, never the repo root; never double-click the HTML — <code>file://</code> blocks data loading).</p></div></div>
+<div class="step"><div class="num">1</div><div><h3><code>pipeline/download_geo.sh list|get</code> — fetch from NCBI</h3><p><code>list</code> prints supplementary files per SubSeries; <code>get ACC…</code> downloads them to <code>data/raw/{ACC}/</code>. Fixed in this repo to skip non-data links (an <code>hhs.gov</code> href used to abort multi-accession downloads under <code>set -euo pipefail</code>).</p></div></div>
+<div class="step"><div class="num">2</div><div><h3><code>pipeline/prepare_data.py ACC…</code> — raw → processed</h3><p>Extracts <code>*.tar*</code>, picks the <b>largest</b> table file per SubSeries (always the human matrix here), copies to <code>data/processed/{protocol}{ext}</code> via a hardcoded accession→protocol MAP (GSE133535→10X_2x5K_250K … GSE141469→10X_V3). Prints chosen vs alternative files — verify the choice.</p></div></div>
+<div class="step"><div class="num">3</div><div><h3><code>pipeline/inspect_data.py</code> — diagnose before analysis</h3><p>Per file: rows/cols, numeric-column fraction, integer-count check (False ⇒ already normalised ⇒ assumptions break), orientation guess, metadata barcode overlap. Its row-name display misreads corner-less TSVs (shows <code>nan</code>); the analyser is unaffected.</p></div></div>
+<div class="step"><div class="num">4</div><div><h3><code>pipeline/run_analysis.py [config]</code> — the analysis</h3><p>Sections §6.1–§6.8: chunked load → QC → equalise → normalise/HVG/PCA → kNN+Louvain → score → <code>results.json</code> (+ auto <code>.js</code> fallback). Preserves previously curated <code>discrepancies</code> across re-runs. Guards: protocols with &lt;50 cells or &lt;100 genes post-QC are skipped into <code>errors</code>, not crashed on.</p></div></div>
+<div class="step"><div class="num">5</div><div><h3><code>pipeline/qc_distributions.py [results.json]</code> — pre-QC distributions</h3><p>Second chunked pass (<code>chunksize=2000</code>, float64 accumulators) over the same matrices: per-cell genes/UMIs percentiles, genes seen in ≥1/≥3 cells, top-50/200 count shares, top-5 gene IDs. Merged into each protocol's <code>qc_dist</code> (powers Quality Figs. R6–R8), including a ≤1000-cell per-cell sample (<code>cell_sample{genes,umis}</code>) backing the R13 violins.</p></div></div>
+<div class="step"><div class="num">6</div><div><h3><code>pipeline/similarity.py [results.json]</code> — cross-protocol similarity</h3><p>Two chunked passes per matrix: (1) per-cell gene counts → QC mask (≥ min_genes) → fixed ≤100-cell sample (seed 0); (2) per-gene sums over QC cells + sampled presence submatrix. Then: gene intersection across protocols (common genes) → mean CP10K per gene → log1p → Pearson matrix; cumulative union genes over 1–100 cells, mean of 3 shuffles. Writes <code>d["similarity"]</code> (+ <code>.js</code>).</p></div></div>
+<div class="step"><div class="num">7</div><div><h3><code>pipeline/make_synthetic.py</code> + <code>tests/test_pipeline.sh</code> — smoke test</h3><p>Generates 3 synthetic protocols (1200 genes; depths 4000/1500/700; 400 cells each) into <code>data/synthetic/</code>, runs the analyser with <code>config.synthetic.yaml</code> → <code>site/data/demo.json</code>, asserts 3 protocols and ARI&gt;0.5. Output is <b>never</b> real data; the dashboard's <code>?demo</code> mode loads it.</p></div></div>
+</div>
+
+<h2 id="s6">6. Analysis internals: formulas and algorithms</h2>
+<h3>6.1 Load</h3>
+<p>Text matrices stream in 1000-row gene blocks into a CSR cells×genes matrix (float32). 10x folders: <code>mmread(matrix.mtx).T</code> with <code>features.tsv/genes.tsv</code> + <code>barcodes.tsv</code>. Orientation: <code>auto</code> treats input as genes×cells when rows&gt;cols and transposes. Memory-safe: peak ≈ one block (e.g. 1000×80,000 float32 ≈ 320 MB for the largest 10X set).</p>
+<h3>6.2 QC</h3>
+<p>Per cell: <code>n_genes = #(X&gt;0)</code>, <code>umis = ΣX</code>, <code>mito% = 100·ΣX_mito/max(umis,1)</code> (0 everywhere here — §2.3). Keep <code>(n_genes ≥ 200) &amp; (mito% ≤ 20)</code>; then drop genes seen in &lt;3 cells. Medians of the survivors are the reported <code>median_genes/median_umis/median_mito_pct</code>.</p>
+<h3>6.3 Normalise → HVG → PCA</h3>
+<div class="formula">CP10K: X′<sub>ij</sub> = X<sub>ij</sub> · 10⁴ / Σ<sub>j</sub>X<sub>ij</sub> &nbsp;→&nbsp; L = ln(1+X′) &nbsp;→&nbsp; top-2000 variance genes &nbsp;→&nbsp; z = clip((z−μ)/σ, −10, 10) &nbsp;→&nbsp; TruncatedSVD(30, seed 0)</div>
+<h3>6.4 kNN graph → Louvain</h3>
+<p><code>kneighbors_graph(PCs, k=min(15, n−1), include_self=False)</code>, symmetrised by element-wise maximum with its transpose, converted with <code>from_scipy_sparse_array</code>, partitioned by <code>louvain_communities(resolution=1.0, seed=0)</code>; community index = cluster label; count = <code>n_clusters</code>.</p>
+<h3>6.5 Equalisation, labels, stability</h3>
+<p>Each protocol is subsampled (seeded, no replacement) to <code>n_use = min(5000, min QC-pass counts)</code> — currently 1,451 (inDrop is smallest). Reference labels (when present) reindex by barcode; ARI/NMI/silhouette (silhouette on ≤2000 cells) need &gt;50% labelled cells. <b>Stability</b> (always computed): 5× draw 80% of cells, re-embed <i>and</i> re-cluster from counts, ARI vs full-data labels restricted to the subsample; report mean ± SD. t-SNE: ≤1500 cells, <code>perplexity=min(30,(n−1)/3)</code>, <code>init="pca"</code>, seed 0, coordinates rounded to 2 dp.</p>
+<h3>6.5b Stored embeddings</h3>
+<p>For the t-SNE cell subset (<code>t</code>, ≤1500 cells): <b>PCA</b> scatter (<code>P[t,:2]</code> + the full 30-component <code>explained_variance_ratio_</code>), <b>UMAP</b> coordinates (or <code>null</code>), and <b>cellstat</b> (<code>cluster</code> + per-cell <code>genes</code>/<code>umis</code> from the post-QC arrays). These power the Explorer views and the R14/R15 cluster boxes. t-SNE perplexity = min(30, (n−1)/3), init <code>"pca"</code>, seed 0.</p>
+<h3>6.6 Cluster markers</h3>
+<p>On the equalised cells, log1p(CP10K) values over the top-<code>n_hvg</code> variable genes: per Louvain community, score = (mean<sub>in</sub> − mean<sub>out</sub>) × fraction expressing; top 5 kept. The union set (≤5 genes × communities) is stored with per-cluster means/fractions for the dashboard dot plot (Fig. R10). Deterministic — uses no RNG, so equalisation, stability draws and t-SNE are bit-identical with or without this block. Names stay as-matrix (ENSEMBL IDs); <code>pipeline/map_symbols.py</code> adds symbols when resolvable.</p>
+<h3>6.7 Synthetic data (test only)</h3>
+<p>4 cell types × 1200 genes; type-signal genes amplified 8×; depths 4000/1500/700 via Poisson sampling; 400 cells/protocol; <code>MT-0…12</code> synthetic mito genes.</p>
+
+<h2 id="s7">7. Outputs: results.json schema and friends</h2>
+<div class="card wrap"><table class="kv">
+<tr><th>Path</th><th>Content</th></tr>
+<tr><td><code>site/data/results.json</code></td><td><code>{generated, config, cells_per_protocol, protocols[], discrepancies[], errors[]}</code>. Per protocol: <code>protocol, cells_pass_qc, median_genes, median_umis, median_mito_pct, n_clusters, label_coverage</code>, optional <code>ari/nmi/silhouette/composition</code>, <code>stability_mean/sd</code>, <code>qc_dist{input_cells, genes_total_1cell/3cells, genes_q[7], umis_q[7], top50/200_share, top5_genes}</code> (percentiles = min,P10,P25,median,P75,P90,max), <code>tsne{x,y,cluster,label}</code>.</td></tr>
+<tr><td><code>markers</code> (per protocol)</td><td><code>{genes[union], top{cluster:[idx]}, clusters{cluster:{means[], fracs[]}}}</code> — top-5 cluster-associated HVGs + the matrix behind the R10 dot plot; optional <code>symbols{ensg: symbol}</code>.</td></tr>
+<tr><td><code>pca / umap / cellstat</code></td><td>t-subset coordinates + PC variances + per-cell cluster/genes/umis (Explorer views, R14/R15 boxes).</td></tr>
+<tr><td><code>similarity</code></td><td><code>{genes_common, qc_note, order[], correlation[15×15], cumulative{protocol:[100]}}</code> — powers Similarity Figs. R11–R12.</td></tr>
+<tr><td><code>site/data/results.js</code></td><td>Auto-written alongside: <code>window.RESULTS = {...}</code> — offline fallback so the page works over <code>file://</code>.</td></tr>
+<tr><td><code>site/data/demo.json / demo.js</code></td><td>Same schema, synthetic; loaded only with <code>?demo</code> (plus embedded fallback).</td></tr>
+<tr><td><code>site/index.html</code></td><td>The dashboard (9 tabs, figures R1–R9, §8). Loads <code>data/results.json</code> (tries <code>data/ → ./data/ → site/data/</code>), then the embedded fallback, else a diagnostics box.</td></tr>
+</table></div>
+
+<h2 id="s8">8. Dashboard: every tab and figure (R1–R9)</h2>
+<div class="card wrap"><table>
+<tr><th>Tab</th><th>Content</th></tr>
+<tr><td>Overview</td><td>Hero (live complexity order + stability range), KPI cards, sortable metrics table, CSV download, auto-computed key findings, data dictionary.</td></tr>
+<tr><td>Quality</td><td><b>R1a/R1b</b> log-scale median bars (genes, UMIs) · <b>R2</b> log–log bubble plot (area ∝ QC-pass cells; labels de-overlapped with leader lines, edge-flipped) · <b>R3</b> input→QC-pass retention bars · genes-per-1K-UMIs efficiency · <b>R6/R7</b> pre-QC per-cell distribution plots (whiskers min–max, box IQR, thick median, thin P10/P90) · <b>R8</b> top-50/200 concentration bars · <b>R13a/b</b> KDE violin distributions (rotated labels) (≤1000 QC-pass cells, Silverman bandwidth, IQR bar + median dot).</td></tr>
+<tr><td>Clustering</td><td><b>R4a</b> stability mean ± SD (axis fixed 0.5–1.0) · <b>R4b</b> Louvain community counts · honest empty-state for ARI/NMI/silhouette · per-protocol cluster-size distributions from the t-SNE subset · <b>R14/R15</b> Tukey box plots of genes/UMIs per cluster (same subset, protocol selector) · <b>R16a–c</b> embedding gallery (t-SNE/PCA/UMAP side-by-side, same cells) · <b>R16d</b> PCA scree with 80% mark · <b>R17</b> communities-vs-genes scatter with Pearson r.</td></tr>
+<tr><td>Benchmark</td><td><b>R5</b> Fig. 6-style dot plot (5 min–max metrics, vertical headers, orange arithmetic-mean composite + paper ranks) with value table · <b>R9</b> paper-vs-replication rank bump chart.</td></tr>
+<tr><td>Protocols</td><td>Per-protocol deep-dive cards: full metric table with Δ-vs-best, auto interpretation, paper-rank badge, cluster distribution.</td></tr>
+<tr><td>Markers</td><td><b>R10</b> dot plot (union top markers × clusters; size = fraction, shade = gene-normalised mean) with protocol selector.</td></tr>
+<tr><td>Similarity</td><td><b>R11</b> correlation heatmap (common genes, composite-rank order) · <b>R12</b> cumulative-gene curves with end labels.</td></tr>
+<tr><td>Explorer</td><td>Canvas scatter with <b>view switch (t-SNE / PCA / UMAP)</b> and <b>colour switch (cluster / genes / UMIs / label)</b>; PCA captions carry PC1/PC2 variance; per-cluster counts and hover tooltips; labels all NA without metadata.</td></tr>
+<tr><td>Glossary</td><td>22 plain-language term definitions.</td></tr>
+<tr><td>Datasets</td><td>All 15 SubSeries with input/QC-pass/retention/status + paper-rank pills.</td></tr>
+<tr><td>Discrepancies</td><td>Curated paper-vs-replication cards (survive pipeline re-runs by design).</td></tr>
+</table></div>
+<p class="mut">Every figure card carries a numbered caption and a collapsible methods/provenance note; every SVG has a Download button and <code>&lt;title&gt;</code> tooltips. Scales/axes/ranges are computed from live data (no magic constants), except the R4a axis which is fixed to [0.5, 1.0] by definition of the stability range.</p>
+
+<h2 id="s9">9. Metric definitions</h2>
+<div class="card wrap"><table>
+<tr><th>Metric</th><th>Definition</th></tr>
+<tr><td>Median genes / UMIs</td><td>Median over QC-pass cells, full-depth (paper: 20K-read equalised per cell type).</td></tr>
+<tr><td>Retention</td><td>QC-pass / input cells (min_genes ≥ 200; mito gate inert here).</td></tr>
+<tr><td>ARI</td><td>Adjusted Rand index: clustering agreement corrected for chance; 1 = identical, ≈0 = random.</td></tr>
+<tr><td>NMI / silhouette</td><td>Normalised mutual information [0,1]; silhouette cohesion-vs-separation [−1,1] (≈ paper's ASW).</td></tr>
+<tr><td>Stability</td><td>Mean ± SD of ARI(full labels, re-clustered 80% subsample) over 5 seeded repeats — precision, not accuracy.</td></tr>
+<tr><td>Composite</td><td>Min–max normalise each metric across processed protocols; arithmetic mean (paper: harmonic mean of 6 — degenerate to 0 under few-protocol min–max, hence the switch, documented on the Benchmark tab).</td></tr>
+<tr><td>Concentration</td><td>Share of all counts in the top-50/200 expressed genes; even coverage preserves rare transcripts.</td></tr>
+</table></div>
+
+<h2 id="s10">10. Paper vs replication map (Figs. 1–6)</h2>
+<div class="card wrap"><table>
+<tr><th>Paper step</th><th>Paper</th><th>This repo</th><th>Match</th></tr>
+<tr><td>Primary processing</td><td>Joint-genome mapping, per-species counts</td><td>Starts from GEO count matrices</td><td>Not reproduced</td></tr>
+<tr><td>Cell-type labels</td><td>Reference + matchSCore2 (p ≥ 0.5)</td><td>Needs external labels in <code>metadata.csv</code></td><td>Not implemented</td></tr>
+<tr><td>Downsampling</td><td>20K reads/cell and equal cell number</td><td>Equal cell number only</td><td>Partial</td></tr>
+<tr><td>Fig. 2 genes/dropout</td><td>By cell type, vs depth</td><td>Quality tab: log medians, bubble plot, retention, per-cell distributions, concentration</td><td>Partial</td></tr>
+<tr><td>Fig. 3 technical effects</td><td>HVG PCA, correlation, markers, cumulative genes</td><td>Distributions, concentration + cluster markers (R10 dot plot); no HVG-PCA panel</td><td>Partial</td></tr>
+<tr><td>Fig. 4 clustering</td><td>Cluster accuracy + ASW</td><td>Stability ± SD, community counts, size distributions, t-SNE explorer</td><td>Approximate</td></tr>
+<tr><td>Fig. 5 integration</td><td>Separation vs mixing; projection</td><td>—</td><td>Not implemented</td></tr>
+<tr><td>Fig. 6 overall score</td><td>Harmonic mean of 6 metric scores</td><td>Benchmark tab: dot plot + arithmetic-mean composite + rank bump chart</td><td>Approximate</td></tr></table></div>
+<p class="mut">"Cluster accuracy" is undefined in the accessible text; ARI/NMI are stand-ins. Subsample stability is an added metric, not from the paper.</p>
+
+<h2 id="s11">11. Limitations and known artefacts</h2>
+<div class="card note"><ul style="margin:6px 0;padding-left:20px">
+<li><b>No reference labels</b> (GEO supplements lack them): ARI/NMI/silhouette absent; stability measures precision only.</li>
+<li><b>No read-depth equalisation</b>: full-depth medians conflate depth with efficiency; Smart-seq2/C1HT/ICELL8 "UMIs" are non-UMI read counts and not comparable to UMI counts.</li>
+<li><b>Mito QC inert</b>: ENSEMBL IDs never match <code>MT-</code>/<code>MT.</code> (the transcripts are present — e.g. MT-ND1 = ENSG00000198888 — but invisible to a prefix match); retention reflects only the min_genes cut.</li>
+<li><b>Different clustering stack</b> (Louvain/30 PCs/k=15/res=1.0 vs Seurat/8 PCs/res=0.6), variance-based HVGs, equalised cells (not reads).</li>
+<li><b>Composite ≠ paper score</b>: 5 available full-depth metrics, arithmetic mean, few-protocol min–max — ranking signal only.</li>
+<li><b>Species doublets retained</b>; mouse/dog cells included in human-matrix totals as mapped.</li>
+<li><b>TruncatedSVD RuntimeWarnings</b> (overflow/invalid) are cosmetic; all outputs finite and verified.</li>
+</ul></div>
+
+<h2 id="s12">12. Reproduce it / extend it</h2>
+<pre>bash run.sh setup && source .venv/bin/activate
+bash run.sh test        # synthetic smoke test (~1 min), asserts ARI&gt;0.5
+bash pipeline/download_geo.sh list
+bash run.sh download GSE133540 GSE133535 GSE133539   # or all 15 accessions
+bash run.sh prepare GSE133540 GSE133535 GSE133539
+bash run.sh inspect     # check shapes, orientation, integer counts
+# optional: data/metadata.csv (index = barcode, column celltype)
+bash run.sh analyse     # → site/data/results.json (+ .js fallback; preserves discrepancies)
+python pipeline/qc_distributions.py   # → adds qc_dist (powers Figs. R6–R8)
+python pipeline/map_symbols.py        # → adds marker symbols (needs network)
+python pipeline/similarity.py         # → adds similarity (powers Figs. R11–R12)
+bash run.sh serve
+# mouse track: PROCESSED_DIR=data/processed_mouse SPECIES=mouse python pipeline/prepare_data.py [ACC…]
+#   python pipeline/run_analysis.py config.mouse.yaml && python pipeline/qc_distributions.py site/data/results_mouse.json
+#   python pipeline/map_symbols.py site/data/results_mouse.json && python pipeline/similarity.py site/data/results_mouse.json       # http://localhost:8000</pre>
+<p><b>Resources:</b> raw downloads ≈ 750 MB for all 15 human matrices (largest: 10X 8×10K, ~147 MB gz, 80,000 cells); full 15-protocol analysis is CPU-bound (single core) and takes on the order of an hour; <code>site/data/results.json</code> is a few MB (t-SNE coordinates dominate).</p>
+<p><b>Adding a protocol:</b> download its SubSeries → <code>prepare</code> (extend MAP if new) → <code>analyse</code> → <code>qc_distributions.py</code> → <code>map_symbols.py</code> → <code>similarity.py</code>; add its paper rank to <code>PAPER_RANK</code> and its CAT→protocol entry to the datasets <code>MAP</code> in <code>site/index.html</code>; all figures/scales/captions adapt automatically.</p>
+<h2 id="s13">13. Results snapshot (live data)</h2>
+<p class="mut">Read live from <code>site/data/results.json</code> — always current, no duplicated numbers.</p>
+<div class="card wrap" id="live"><span class="mut">loading…</span></div>
+<script>
+fetch('data/results.json').then(r=>{if(!r.ok)throw 0;return r.json()}).then(d=>{
+const P=[...d.protocols].sort((a,b)=>b.median_genes-a.median_genes);
+document.getElementById('live').innerHTML=`<table><tr><th>#</th><th>Protocol</th><th>Input</th><th>QC-pass</th><th>Median genes</th><th>Median UMIs</th><th>k</th><th>Stability</th></tr>`+P.map((p,i)=>`<tr><td>${i+1}</td><td><b>${p.protocol}</b></td><td>${(p.qc_dist?p.qc_dist.input_cells:p.cells_pass_qc).toLocaleString()}</td><td>${p.cells_pass_qc.toLocaleString()}</td><td>${Math.round(p.median_genes).toLocaleString()}</td><td>${Math.round(p.median_umis).toLocaleString()}</td><td>${p.n_clusters}</td><td>${p.stability_mean.toFixed(2)} ± ${p.stability_sd.toFixed(2)}</td></tr>`).join('')+`</table><p class="mut">Equalised downstream n=${d.cells_per_protocol.toLocaleString()}; generated ${d.generated}.</p>`;}).catch(()=>{document.getElementById('live').innerHTML='<span class="mut">Serve the site/ folder to load live results (see §12).</span>';});
+</script>
+<p><b>Metric illustrations</b> (simulated points, <b>not study data</b>):</p>
+<div class="figs"><figure class="fig"><svg id="f1" viewBox="0 0 100 100"></svg><figcaption>Reference cell types</figcaption></figure><figure class="fig"><svg id="f2" viewBox="0 0 100 100"></svg><figcaption>Clusters found: two types merged → ARI/NMI &lt; 1</figcaption></figure>
+<figure class="fig"><svg id="f3" viewBox="0 0 100 100"></svg><figcaption>Low ASW (types overlap)</figcaption></figure><figure class="fig"><svg id="f4" viewBox="0 0 100 100"></svg><figcaption>High ASW (separated)</figcaption></figure>
+<figure class="fig"><svg id="f5" viewBox="0 0 100 100"></svg><figcaption>Full data</figcaption></figure><figure class="fig"><svg id="f6" viewBox="0 0 100 100"></svg><figcaption>80% subsample (faded = removed): stability</figcaption></figure></div>
+</main>
+
+<script>
+const PAL=['#0f6e56','#d85a30','#378add','#ba7517'],C=[[25,30],[75,28],[30,72],[78,75]];
+function rng(s){return()=>{s=Math.imul(s^s>>>15,1|s);s=s+Math.imul(s^s>>>7,61|s)^s;return((s^s>>>14)>>>0)/4294967296}}
+function pts(seed,sp){const r=rng(seed),g=()=>Math.sqrt(-2*Math.log(r()+1e-9))*Math.cos(6.283*r()),o=[];C.forEach((c,k)=>{for(let i=0;i<55;i++)o.push({x:c[0]+g()*sp,y:c[1]+g()*sp,k,drop:r()<.2})});return o}
+function draw(id,P,col,fade){document.getElementById(id).innerHTML=P.map((p,i)=>`<circle cx="${Math.min(97,Math.max(3,p.x))}" cy="${Math.min(97,Math.max(3,p.y))}" r="1.7" fill="${col(p,i)}" opacity="${fade&&p.drop?.18:.85}"/>`).join('')}
+const A=pts(3,6),B=pts(5,14),S=pts(8,6);
+draw('f1',A,p=>PAL[p.k]);draw('f2',A,p=>PAL[[0,1,2,2][p.k]]);
+draw('f3',B,p=>PAL[p.k]);draw('f4',A,p=>PAL[p.k]);
+draw('f5',S,p=>PAL[p.k]);draw('f6',S,p=>PAL[p.k],true);
+</script></body></html>

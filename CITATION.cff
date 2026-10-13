@@ -1,0 +1,4 @@
+cff-version: 1.2.0
+title: "Partial replication of scRNA-seq protocol benchmarking (Mereu et al. 2020)"
+message: "Please cite the original paper: doi:10.1038/s41587-020-0469-4"
+type: software

@@ -1,0 +1,20 @@
+# Main config. Edit after inspecting the SubSeries files you download (see README).
+metadata: data/metadata.csv      # index = cell barcode; needs the celltype column
+celltype_col: celltype
+matrix_dir: data/processed       # one file or 10x folder per protocol, named <protocol>
+orientation: genes_by_cells                # all GEO exp_mat tables are genes (rows) x cells (cols); auto mis-detects 10X_8x10K (80k cells > 39k genes)
+protocols: []                    # empty = everything found in matrix_dir
+output: site/data/results.json
+mito_prefixes: ["MT-", "MT."]    # case-insensitive; matches human/mouse mitochondrial genes
+min_genes: 200
+max_mito_pct: 20
+min_cells: 3
+equalize_cells: true             # subsample every protocol to the same cell number (fair comparison)
+max_cells: 5000
+n_hvg: 2000
+n_pcs: 30
+knn: 15
+resolution: 1.0
+stability_repeats: 5
+tsne_cells: 1500
+seed: 0
