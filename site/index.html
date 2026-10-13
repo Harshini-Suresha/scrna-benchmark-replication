@@ -96,7 +96,7 @@ code{font-family:var(--mono);font-size:.88em;background:var(--bg);border:1px sol
 </head><body><header class="topbar"><div class="topbar-in">
 <div class="brand"><div class="mark"></div><div><h1>scRNA-seq protocol benchmark</h1>
 <div class="sub">Computational replication of Mereu, Lafzi et al., <i>Nat Biotechnol</i> 38:747–755 (2020) · <a href="https://doi.org/10.1038/s41587-020-0469-4">paper</a> · <a href="https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE133549">GSE133549</a> · <a href="https://github.com/ati-lz/HCA_Benchmarking">authors' code</a> · <a href="methodology.html"><b>methods</b></a> · full-depth counts unless stated; scope and deviations documented</div></div></div>
-<div class="spec" id="spec"><button data-s="human" class="on">Human</button><button data-s="mouse">Mouse</button></div><nav id="tabs"></nav></div></header><main><div id="view"></div>
+<div class="spec" id="spec"><button data-s="human" class="on">Human</button><button data-s="mouse">Mouse</button><button onclick="location.href='methodology.html'" title="Complete record: inputs, parameters, pipeline, figures, deviations from the paper">Methodology</button></div><nav id="tabs"></nav></div></header><main><div id="view"></div>
 </main><footer class="footer"><div class="footer-in"><span>Replication dashboard · Mereu et al. 2020 · GEO GSE133549</span><span><a href="methodology.html">Methodology</a> · <a href="data/results.json">results.json</a> · <a href="?demo">demo mode</a></span></div></footer>
 <script src="data/results.js"></script>
 <script src="data/demo.js"></script>
@@ -686,6 +686,7 @@ const T={
   const cols=[['protocol','Protocol'],['cells_pass_qc','Cells (QC)'],['median_genes','Genes/cell'],['median_umis','UMIs/cell'],['median_mito_pct','Mito %'],['n_clusters','k'],['stability_mean','Stability']];
   return `<div class="hero"><h2>Overview</h2><p>Between-protocol comparison on GEO GSE133549 count matrices. Estimands: per-protocol median detected genes, median counts, QC retention, Louvain partition count (k), and subsample stability. Estimators computed on ${fi(D.cells_per_protocol)} equalised cells protocol<sup>−1</sup> (uniform subsample without replacement, seed ${D.config.seed}); QC and medians pre-equalisation at full depth (no 20K-read downsampling). Stability: mean adjusted Rand index (ARI) between full-data labels and 5 independent 80% re-embeddings/re-clusterings; range ${Math.min(...D.protocols.map(p=>p.stability_mean)).toFixed(2)}–${Math.max(...D.protocols.map(p=>p.stability_mean)).toFixed(2)}. Reference-label metrics require external metadata; mito inference is inoperative on ENSEMBL identifiers (reported 0%).</p></div>${nolab?`<div class="warn">Reference labels absent: ARI / NMI / silhouette versus ground truth are not estimable. Reported stability quantifies precision (self-agreement), not accuracy.</div>`:''}`
   +`<div class="kpis"><div class="card kpi"><span class="lbl">Protocols</span><b>${D.protocols.length} / ${PAPER_N}</b></div><div class="card kpi"><span class="lbl">Cells/protocol</span><b>${fi(D.cells_per_protocol)}</b></div><div class="card kpi"><span class="lbl">Highest genes/cell</span><b>${esc(best('median_genes').protocol)}</b></div><div class="card kpi"><span class="lbl">Most stable</span><b>${esc(best('stability_mean').protocol)}</b></div></div>`
+  +`<div class="card"><h3>Site map — where everything lives</h3><div class="wrap"><table><tr><th>Tab</th><th>What you find there</th></tr>${Object.keys(T).filter(k=>k!=='overview').map(k=>{const m=TABMETA[k]||[k,''];return `<tr><td><a href="#" onclick="show('${k}');return false;"><b>${m[0]}</b></a></td><td>${esc(m[1])}</td></tr>`;}).join('')}<tr><td><a href="methodology.html"><b>Methodology</b></a></td><td>Separate page: complete record — inputs, environment, every parameter, pipeline steps, output schema, paper-vs-replication map, limitations.</td></tr></table></div><p class="figcap"><b>New here?</b> Read this table top to bottom for the analysis story, or jump straight to <a href="#" onclick="show('paper');return false;"><b>Paper figs</b></a> for the paper-figure analogues and <a href="methodology.html"><b>Methodology</b></a> for how everything was computed.</p></div>`
   +`<div class="card wrap"><table><tr>${cols.map(c=>`<th data-k="${c[0]}">${c[1]}${c[0]==sortKey?(sortDir<0?' ▼':' ▲'):''}</th>`).join('')}</tr>`+P.map(p=>`<tr>${cols.map(c=>`<td>${c[0]=='protocol'?esc(p.protocol):c[0]=='median_mito_pct'?p[c[0]].toFixed(1):c[0]=='stability_mean'?p[c[0]].toFixed(2):fi(p[c[0]])}</td>`).join('')}</tr>`).join('')+`</table></div><button class="btn" onclick="dlCsv()">Download CSV</button>${(D.errors||[]).length?`<div class="warn">Skipped: ${D.errors.map(e=>esc(e.protocol)+" ("+esc(e.error)+")").join("; ")}</div>`:""}<div class="card"><h3>Summary</h3><div id="findings"><span class="mut">computing…</span></div></div>
   <details><summary>Data dictionary</summary><table>
   <tr><th>Field</th><th>Definition</th></tr>
@@ -865,14 +866,28 @@ function show(n){window.__tab=n;document.querySelectorAll('#tabs button').forEac
     $('#view #p6').innerHTML=chartShell('fp-mix','Protocol mixability (kBET-style)','','<b>Fig. P6 (paper Fig. 5g–h).</b> Share of joint-space neighbourhoods whose protocol composition rejects the global mix (χ², α=0.05): lower = protocols intermingle, higher = protocol-specific pockets. Overall rejection '+((100*P.mixability.overall_rejection).toFixed(1))+'%. Lightweight analogue of the paper\'s kBET + Seurat/Harmony/scMerge integration assessment.','k=25 neighbours on 30 joint PCs; expected counts from global protocol shares; cf. pipeline/paper_figures.py.');
     const el=document.getElementById('fp-mix');el.setAttribute('viewBox',`0 0 640 ${b.H}`);el.innerHTML=b.svg;}}
   if(n=='explorer'){$('#sp').onchange=$('#sc').onchange=$('#sv').onchange=draw;draw();}}
+const TABMETA={overview:['Overview','Start here: headline ranking, sortable table, and a guide to every tab'],
+quality:['Quality','Library complexity, QC retention and per-cell distributions (R1–R3, R6–R8, R13)'],
+clustering:['Clustering','Partitions, stability, embedding gallery, scree (R4, R14–R17)'],
+markers:['Markers','Cluster marker dot plots per protocol (R10)'],
+similarity:['Similarity','Cross-protocol correlation and cumulative-gene curves (R11–R12)'],
+benchmark:['Benchmark','Composite score and rank agreement with the paper (R5, R9)'],
+signatures:['Signatures','Depth-adjusted and structural diagnostics (R21–R26, R31–R50)'],
+generalizability:['Generalizability','Human-vs-mouse ordering agreement (R18–R20, R27–R30)'],
+paper:['Paper figs','Paper-figure analogues: composition, mapping, depth, dropout, joint PCA, mixing (P1–P6)'],
+protocols:['Protocols','Per-protocol deep-dive cards'],
+explorer:['Explorer','Interactive t-SNE / PCA / UMAP scatter'],
+glossary:['Glossary','Plain-language definitions of every term'],
+datasets:['Datasets','Accessions, downloads and full data tables'],
+discrepancies:['Discrepancies','Where this replication differs from the paper']};
 let SPECIES='human';
 const SRC={
  human:{urls:['data/results.json','./data/results.json','site/data/results.json'],emb:'RESULTS',kind:'human PBMC + spike-ins'},
  mouse:{urls:['data/results_mouse.json','./data/results_mouse.json','site/data/results_mouse.json'],emb:'RESULTS_MOUSE',kind:'mouse colon + spike-ins'}};
 function boot(d,src){D=d;if(!D.protocols||!D.protocols.length)throw new Error('empty protocols from '+src);
- $('#tabs').innerHTML=Object.keys(T).map(k=>`<button data-t="${k}">${k[0].toUpperCase()+k.slice(1)}</button>`).join('');
+ $('#tabs').innerHTML=Object.keys(T).map(k=>{const m=TABMETA[k]||[k[0].toUpperCase()+k.slice(1),''];return `<button data-t="${k}" title="${esc(m[1])}">${m[0]}</button>`;}).join('');
  document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>show(b.dataset.t));
- document.querySelectorAll('#spec button').forEach(b=>{b.classList.toggle('on',b.dataset.s===SPECIES);b.onclick=()=>setSpecies(b.dataset.s);});
+ document.querySelectorAll('#spec button[data-s]').forEach(b=>{b.classList.toggle('on',b.dataset.s===SPECIES);b.onclick=()=>setSpecies(b.dataset.s);});
   $('#tabs').insertAdjacentHTML('beforebegin',`<div class="mut">${esc(SRC[SPECIES].kind)} · ${esc(D.generated||'unknown')}</div>`);
  if(demo)$('#tabs').insertAdjacentHTML('beforebegin','<div class="warn">Synthetic demo data — not GSE133549.</div>');
  show(window.__tab||'overview');
