@@ -22,7 +22,7 @@ python pipeline/paper_figures.py     # Paper-tab panels P1-P6 (composition, mapp
 bash run.sh serve
 ```
 Currently processed: **all 15 human + all 15 mouse SubSeries** (Human/Mouse toggle in the header) (see `site/methodology.html` §2.2 for the matrix table).
-Dashboard tabs: Overview · Quality (R1–R3, R6–R8, R13) · Clustering (R4, R14–R17, R53) · Markers (R10) · Similarity (R11–R12) · Benchmark (R5, R9) · Generalizability (R18–R20, R27–R30) · Signatures (R21–R26, R31–R50) · Paper (P1–P10) · Protocols · Explorer (t-SNE/PCA/UMAP + R51/R52/R54 gallery walls) · Glossary · Datasets (catalogue + downloads + full data tables) · Discrepancies. 64 figures in total (R1–R54 + P1–P10).
+Dashboard tabs: Overview · Quality (R1–R3, R6–R8, R13) · Clustering (R4, R14–R17, R53, R55–R58) · Markers (R10) · Similarity (R11–R12) · Benchmark (R5, R9) · Generalizability (R18–R20, R27–R30) · Signatures (R21–R26, R31–R50) · Paper (P1–P13) · Protocols · Explorer (t-SNE/PCA/UMAP + R51/R52/R54/R59 gallery walls) · Glossary · Datasets (catalogue + downloads + full data tables) · Discrepancies. 72 figures in total (R1–R59 + P1–P13).
 If `inspect` shows problems, fix `config.yaml` (orientation, thresholds) or the file choice, then rerun. Without labels the run still works
 but ARI/NMI/silhouette are skipped; the dashboard shows label coverage per protocol.
 

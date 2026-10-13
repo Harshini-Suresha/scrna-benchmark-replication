@@ -54,6 +54,11 @@
 | R53a | Louvain k vs scanpy Leiden k (paired bars) | Clustering |
 | R53b | Custom vs scanpy ARI vs labels (paired bars) | Clustering |
 | R54 | Scanpy Leiden UMAP wall: all protocols | Explorer |
+| R55 | Custom vs scanpy NMI parity (+ diagonal) | Clustering |
+| R56 | Custom vs scanpy silhouette parity (+ diagonal) | Clustering |
+| R57 | Marker-set Jaccard custom vs scanpy, ranked | Clustering |
+| R58 | Union marker counts custom vs scanpy (paired bars) | Clustering |
+| R59 | Scanpy UMAP wall: species colours | Explorer |
 
 # Paper-figure analogues (Paper tab, `pipeline/paper_figures.py`)
 | Fig | Paper panel | Analogue |
@@ -68,3 +73,6 @@
 | P8 | Fig. 5g–h post-integration mixing | Same kBET-style test on Harmony-corrected PCs (pre vs post comparison) |
 | P9 | Harmony wall per protocol | Integrated coordinates split one panel per protocol, shared axes, species colours |
 | P10 | Pre vs post integration | Joint PCA vs Harmony embedding side by side, protocol colours |
+| P11 | Harmony wall: protocol colours | Integrated panels coloured by protocol |
+| P12 | Rejection pre → post per protocol | Paired bars sorted by improvement |
+| P13 | Harmony wall: genes per cell | Integrated panels shaded by library complexity |
