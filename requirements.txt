@@ -6,3 +6,6 @@ networkx==3.2.1
 PyYAML==6.0.3
 umap-learn==0.5.12
 harmonypy==2.1.0
+scanpy==1.10.3
+igraph==1.0.0
+leidenalg==0.12.0

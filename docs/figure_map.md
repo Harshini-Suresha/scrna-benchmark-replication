@@ -51,6 +51,9 @@
 | R50 | PC1 variance share | Signatures |
 | R51 | t-SNE wall: all protocols, cluster colours | Explorer |
 | R52 | PCA wall: all protocols + variance shares | Explorer |
+| R53a | Louvain k vs scanpy Leiden k (paired bars) | Clustering |
+| R53b | Custom vs scanpy ARI vs labels (paired bars) | Clustering |
+| R54 | Scanpy Leiden UMAP wall: all protocols | Explorer |
 
 # Paper-figure analogues (Paper tab, `pipeline/paper_figures.py`)
 | Fig | Paper panel | Analogue |
