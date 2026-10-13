@@ -63,3 +63,5 @@
 | P6 | Fig. 5g–h integration/mixability | kBET-style χ² neighbourhood rejection rate on joint PCs |
 | P7 | Fig. 5a–d integrated embedding | Joint embedding after Harmony batch correction (protocol = batch, harmonypy) |
 | P8 | Fig. 5g–h post-integration mixing | Same kBET-style test on Harmony-corrected PCs (pre vs post comparison) |
+| P9 | Harmony wall per protocol | Integrated coordinates split one panel per protocol, shared axes, species colours |
+| P10 | Pre vs post integration | Joint PCA vs Harmony embedding side by side, protocol colours |
