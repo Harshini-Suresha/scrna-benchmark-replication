@@ -49,6 +49,8 @@
 | R48 | Silhouette ranking | Signatures |
 | R49 | Rank instability (max−min component rank) | Signatures |
 | R50 | PC1 variance share | Signatures |
+| R51 | t-SNE wall: all protocols, cluster colours | Explorer |
+| R52 | PCA wall: all protocols + variance shares | Explorer |
 
 # Paper-figure analogues (Paper tab, `pipeline/paper_figures.py`)
 | Fig | Paper panel | Analogue |
