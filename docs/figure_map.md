@@ -5,12 +5,24 @@
 | 2 | UMAPs of references; genes detected (20K); genes vs depth; dropout vs expression | Covered at species level (P3 thinned-depth genes curves overall + Human/Mouse; P4 empirical dropout-vs-expression; Paper tab). Reference UMAPs and per-cell-type (HEK293T/monocyte/B) splits not reproduced — no matchSCore2/Table S2 labels |
 | 3 | HVG PCA; Pearson correlation; marker heatmaps; cumulative genes | Covered (P5 joint HVG-PCA by protocol/species/genes; R11 correlation; R10 markers; R12 cumulative; Paper tab) |
 | 4 | t-SNE clusters per protocol; cluster accuracy and ASW | Approximate (ARI/NMI/silhouette vs species-mix labels, t-SNE in Explorer). Paper accuracy is vs matchSCore2 cell types |
-| 5 | Integration UMAPs; signature scores; separation vs mixing | Partial (P6 pre-integration kBET-style mixability baseline; Paper tab). No Seurat/Harmony/scMerge integration, no projection probabilities |
+| 5 | Integration UMAPs; signature scores; separation vs mixing | Partial (P6 pre- + P8 post-integration kBET-style mixability around Harmony batch correction P7/P9/P11/P13 + pre/post pair P10/P12; Paper tab). No Seurat/scMerge integration, no projection probabilities |
 | 6 | Overall benchmarking score | Approximate (R5 arithmetic-mean composite + R9 rank agreement; paper used harmonic mean of 6 metrics) |
 
 # Replication-only figures (no paper counterpart; all full-depth unless stated)
 | Fig | Content | Tab |
 |---|---|---|
+| R1a/b | Median genes / UMIs per cell, log-scale bars | Quality |
+| R2 | Genes-vs-UMIs bubble scatter (log–log, area ∝ QC-pass cells) | Quality |
+| R3 | QC retention: input → pass bars | Quality |
+| R4a | Clustering stability, mean ± SD over subsamples | Clustering |
+| R4b | Louvain community counts per protocol | Clustering |
+| R5 | Benchmark composite dot plot (5 metrics + mean) | Benchmark |
+| R6/R7 | Per-cell gene / count distributions (min–max whiskers, IQR box, median, P10/P90) | Quality |
+| R8 | Count concentration in top-50 / top-200 genes | Quality |
+| R9 | Paper-vs-replication rank bump chart | Benchmark |
+| R10 | Cluster marker dot plot (union top markers × clusters) | Markers |
+| R11 | Cross-protocol Pearson correlation heatmap (common genes) | Similarity |
+| R12 | Cumulative detected genes over 1–100 cells | Similarity |
 | R13a/b | Per-cell gene/count violins (KDE, ≤1,000 QC-pass cells) | Quality |
 | R14/R15 | Genes/counts per Louvain cluster (Tukey boxes) | Clustering |
 | R16a–c | Same-cell t-SNE/PCA/UMAP gallery | Clustering |
