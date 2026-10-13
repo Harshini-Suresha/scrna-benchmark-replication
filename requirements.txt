@@ -5,3 +5,4 @@ scikit-learn==1.6.1
 networkx==3.2.1
 PyYAML==6.0.3
 umap-learn==0.5.12
+harmonypy==2.1.0

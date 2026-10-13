@@ -61,3 +61,5 @@
 | P4 | Fig. 2f dropout vs expression | Empirical dropout fraction vs mean log1p CP10K (deciles) |
 | P5 | Fig. 3a–b HVG PCA | Joint HVG-PCA over common genes, coloured by protocol/species/genes |
 | P6 | Fig. 5g–h integration/mixability | kBET-style χ² neighbourhood rejection rate on joint PCs |
+| P7 | Fig. 5a–d integrated embedding | Joint embedding after Harmony batch correction (protocol = batch, harmonypy) |
+| P8 | Fig. 5g–h post-integration mixing | Same kBET-style test on Harmony-corrected PCs (pre vs post comparison) |

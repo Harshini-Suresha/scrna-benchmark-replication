@@ -280,7 +280,7 @@ function figDropout(){const O=D.paper.dropout,names=Object.keys(O);if(!names.len
  names.forEach((n,i)=>{const cx=x0+(i%per)*124,cy=y1+52+Math.floor(i/per)*17;
   s+=`<rect x="${cx}" y="${cy-10}" width="11" height="11" fill="${cmap[n]||'#888'}"><title>${esc(n)}</title></rect><text x="${cx+15}" y="${cy}">${esc(n)}</text>`;});
  return {svg:s,H:y1+52+rowsL*17+8,W:x1+24};}
-function figJoint(mode){const J=D.paper.joint;if(!J||!J.cells||!J.cells.length)return null;
+function figJoint(mode,J){J=J||D.paper.joint;if(!J||!J.cells||!J.cells.length)return null;
  const C=J.cells,W=620,H=360,x0=64,x1=W-24,y0=16,y1=300;let s='';
  const xs=C.map(c=>c.x),ys=C.map(c=>c.y);
  const xa=Math.min(...xs),xb=Math.max(...xs),ya=Math.min(...ys),yb=Math.max(...ys);
@@ -298,7 +298,7 @@ function figJoint(mode){const J=D.paper.joint;if(!J||!J.cells||!J.cells.length)r
   leg=u.map(k=>`<span><i style="background:${cmap[k]||'#888'}"></i>${esc(k)} (${C.filter(c=>c.p===k).length})</span>`).join('');}
  C.forEach(c=>{s+=`<circle cx="${X(c.x).toFixed(1)}" cy="${Y(c.y).toFixed(1)}" r="2.4" fill="${col(c)}" opacity="0.75"><title>${esc(c.p)} · ${esc(c.s)} · ${c.g} genes</title></circle>`;});
  return {svg:s,H,W,leg};}
-function figMix(){const M=D.paper.mixability;if(!M)return null;
+function figMix(M){M=M||D.paper.mixability;if(!M)return null;
  const rows=Object.entries(M.per_protocol_rejection).sort((a,b)=>a[1]-b[1]);
  const x0=150,x1=600,y0=20,rh=56,H=y0+rows.length*rh+40;let s='';
  for(let f=0;f<=1.01;f+=0.25){const x=x0+f*(x1-x0);s+=`<line class="grid" x1="${x.toFixed(1)}" y1="${y0}" x2="${x.toFixed(1)}" y2="${H-30}"/><text x="${x.toFixed(1)}" y="${H-12}" text-anchor="middle">${Math.round(f*100)}%</text>`;}
@@ -716,7 +716,7 @@ const T={
  signatures(){return `<div id="u1"></div><div id="u2"></div><div id="u3"></div><div id="u4"></div><div id="u5"></div><div id="u6"></div><div id="u7"></div><div id="u8"></div><div id="u9"></div><div id="u10"></div><div id="u11"></div><div id="u12"></div><div id="u13"></div><div id="u14"></div><div id="u15"></div><div id="u16"></div><div id="u17"></div><div id="u18"></div><div id="u19"></div><div id="u20"></div><div id="u21"></div><div id="u22"></div><div id="u23"></div><div id="u24"></div><div id="u25"></div><div id="u26"></div>`;},
   paper(){const P=D.paper;
    if(!P||!P.depths)return `<div class="empty"><b>No paper-figure data in this results file.</b> Run <code>python pipeline/paper_figures.py</code> (and again with the mouse results file), then reload.</div>`;
-   return `<div class="card note"><b>What this is.</b> Direct analogues of the paper's per-figure panels, computed on this replication's data. Reference labels here are <b>species-mix calls</b> (Human/Mouse/Doublet/Dog from the GEO supplements), not the paper's matchSCore2 cell types (PBMC/colon subpopulations) — so panels that the paper stratifies by cell type are stratified by species instead. Depths are thinned UMIs (binomial), approximating the paper's 20K-read zUMIs downsampling.</div><div id="p1"></div><div id="p2"></div><div id="p3"></div><div id="p4"></div><div id="p5"></div><div id="p6"></div>`;},
+   return `<div class="card note"><b>What this is.</b> Direct analogues of the paper's per-figure panels, computed on this replication's data. Reference labels here are <b>species-mix calls</b> (Human/Mouse/Doublet/Dog from the GEO supplements), not the paper's matchSCore2 cell types (PBMC/colon subpopulations) — so panels that the paper stratifies by cell type are stratified by species instead. Depths are thinned UMIs (binomial), approximating the paper's 20K-read zUMIs downsampling.</div><div id="p1"></div><div id="p2"></div><div id="p3"></div><div id="p4"></div><div id="p5"></div><div id="p6"></div><div id="p7"></div><div id="p8"></div>`;},
   protocols(){const {rows}=benchScores();const crank={};rows.forEach((r,i)=>crank[r.p.protocol]=i+1);
   const bg=[...D.protocols].sort((a,b)=>b.median_genes-a.median_genes)[0],be=[...D.protocols].sort((a,b)=>b.median_genes/b.median_umis-a.median_genes/a.median_umis)[0],bs=[...D.protocols].sort((a,b)=>b.stability_mean-a.stability_mean)[0];
   return rows.map(r=>{const p=r.p,inp=INPUT(p),ret=100*p.cells_pass_qc/inp,eff=p.median_genes/p.median_umis*1000;
@@ -862,8 +862,17 @@ function show(n){window.__tab=n;document.querySelectorAll('#tabs button').forEac
     $('#fp-joint').insertAdjacentHTML('afterend',`<div class="lg">${b.leg}</div>`);}};
    if(P.joint)paintJoint();
    if(P.mixability){const b=figMix();
-    $('#view #p6').innerHTML=chartShell('fp-mix','Protocol mixability (kBET-style)','','<b>Fig. P6 (paper Fig. 5g–h).</b> Share of joint-space neighbourhoods whose protocol composition rejects the global mix (χ², α=0.05): lower = protocols intermingle, higher = protocol-specific pockets. Overall rejection '+((100*P.mixability.overall_rejection).toFixed(1))+'%. Lightweight analogue of the paper\'s kBET + Seurat/Harmony/scMerge integration assessment.','k=25 neighbours on 30 joint PCs; expected counts from global protocol shares; cf. pipeline/paper_figures.py.');
-    const el=document.getElementById('fp-mix');el.setAttribute('viewBox',`0 0 640 ${b.H}`);el.innerHTML=b.svg;}}
+    $('#view #p6').innerHTML=chartShell('fp-mix','Protocol mixability, pre-integration (kBET-style)','','<b>Fig. P6 (paper Fig. 5g–h).</b> Share of joint-space neighbourhoods whose protocol composition rejects the global mix (χ², α=0.05): lower = protocols intermingle, higher = protocol-specific pockets. Overall rejection '+((100*P.mixability.overall_rejection).toFixed(1))+'% <b>before</b> integration — compare P7 after Harmony.','k=25 neighbours on 30 joint PCs; expected counts from global protocol shares; cf. pipeline/paper_figures.py.');
+    const el=document.getElementById('fp-mix');el.setAttribute('viewBox',`0 0 640 ${b.H}`);el.innerHTML=b.svg;}
+   if(P.joint_int&&P.mixability_int){const pre=P.mixability.overall_rejection,post=P.mixability_int.overall_rejection;
+    const bj=figJoint('protocol',P.joint_int);
+    if(bj){$('#view #p7').innerHTML=chartShell('fp-harm','Harmony integration: joint embedding','','<b>Fig. P7 (paper Fig. 5a–d).</b> Same cells after Harmony batch correction (protocol = batch, harmonypy): overall neighbourhood rejection '+((100*pre).toFixed(1))+'% → '+((100*post).toFixed(1))+'%. Colour by protocol; residual pockets (e.g. plate vs droplet chemistry) survive correction, as in the paper.','Harmony on 30 joint PCs; corrected PCs 1–2 shown.');
+    const el=document.getElementById('fp-harm');el.setAttribute('viewBox',`0 0 640 ${bj.H}`);el.innerHTML=bj.svg;
+    $('#fp-harm').insertAdjacentHTML('afterend',`<div class="lg">${bj.leg}</div>`);}
+    const bm=figMix(P.mixability_int);
+    if(bm){$('#view #p8').innerHTML=chartShell('fp-mixpost','Protocol mixability, post-Harmony','','<b>Fig. P8 (paper Fig. 5g–h).</b> Same kBET-style test after Harmony: overall rejection '+((100*post).toFixed(1))+'% vs '+((100*pre).toFixed(1))+'% pre-integration. Bars that stay high flag chemistry-driven structure Harmony cannot (and should not) remove.','Same k=25 neighbourhood test on Harmony-corrected PCs.');
+    const e2=document.getElementById('fp-mixpost');e2.setAttribute('viewBox',`0 0 640 ${bm.H}`);e2.innerHTML=bm.svg;}}
+   else if(P.mixability){$('#view #p7').innerHTML='<div class="empty"><b>No Harmony output in this results file.</b> Install harmonypy (<code>pip install harmonypy</code>) and rerun <code>python pipeline/paper_figures.py</code>.</div>';}}
   if(n=='explorer'){$('#sp').onchange=$('#sc').onchange=$('#sv').onchange=draw;draw();}}
 const TABMETA={overview:['Overview','Start here: headline ranking, sortable table, and a guide to every tab'],
 quality:['Quality','Library complexity, QC retention and per-cell distributions (R1–R3, R6–R8, R13)'],
@@ -873,7 +882,7 @@ similarity:['Similarity','Cross-protocol correlation and cumulative-gene curves 
 benchmark:['Benchmark','Composite score and rank agreement with the paper (R5, R9)'],
 signatures:['Signatures','Depth-adjusted and structural diagnostics (R21–R26, R31–R50)'],
 generalizability:['Generalizability','Human-vs-mouse ordering agreement (R18–R20, R27–R30)'],
-paper:['Paper figs','Paper-figure analogues: composition, mapping, depth, dropout, joint PCA, mixing (P1–P6)'],
+paper:['Paper figs','Paper-figure analogues: composition, mapping, depth, dropout, joint PCA, mixing, Harmony integration (P1–P8)'],
 protocols:['Protocols','Per-protocol deep-dive cards'],
 explorer:['Explorer','Interactive t-SNE / PCA / UMAP scatter'],
 glossary:['Glossary','Plain-language definitions of every term'],

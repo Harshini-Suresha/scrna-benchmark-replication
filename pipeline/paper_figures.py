@@ -13,7 +13,9 @@ What it computes, per species results file:
   - joint (Fig. 3a-b): joint HVG-PCA over sampled cells across protocols
     (common genes only): PC1/PC2 coords + protocol/species/ngenes
   - mixability (Fig. 5g-h): kBET-style chi-square neighbourhood test on the
-    joint PC space: per-protocol rejection rate (low = well mixed)
+    joint PC space, PRE-integration (low = well mixed)
+  - joint_int + mixability_int (Fig. 5): Harmony integration
+    (harmonypy, protocol = batch) with the same test POST-integration
 
 I/O strategy: matrices are genes (rows) x cells (cols) with up to 80k
 columns, so full parses are prohibitive. Per protocol we read the header
@@ -244,25 +246,30 @@ def main():
             P = svd.fit_transform(X[:, hv])
             var = [round(float(v), 4)
                    for v in svd.explained_variance_ratio_[:2]]
-            # kBET-style chi-square mixing test
-            up = sorted(set(protos))
-            gf = np.array([protos.count(u) for u in up]) / len(protos)
-            nbrs = NearestNeighbors(
-                n_neighbors=min(KNN_MIX, len(protos) - 1)).fit(P)
-            rej = {u: [0, 0] for u in up}
-            rej_all = 0
-            parr = np.array(protos)
-            for i, nb in enumerate(nbrs.kneighbors(P, return_distance=False)):
-                obs = np.array([(parr[nb] == u).sum() for u in up])
-                exp = len(nb) * gf
-                msk = exp > 0
-                stat = float(((obs[msk] - exp[msk]) ** 2 / exp[msk]).sum())
-                df = int(msk.sum() - 1)
-                r = bool(df > 0 and stat > chi2dist.ppf(0.95, df))
-                rej[protos[i]][int(r)] += 1
-                rej_all += r
-            mix = {u: round(v[1] / max(1, v[0] + v[1]), 3)
-                   for u, v in rej.items()}
+            # kBET-style chi-square mixing test (pre-integration baseline)
+            def kbetscore(coords):
+                up = sorted(set(protos))
+                gf = np.array([protos.count(u) for u in up]) / len(protos)
+                nbrs = NearestNeighbors(
+                    n_neighbors=min(KNN_MIX, len(protos) - 1)).fit(coords)
+                rej = {u: [0, 0] for u in up}
+                rej_all = 0
+                parr = np.array(protos)
+                for i, nb in enumerate(
+                        nbrs.kneighbors(coords, return_distance=False)):
+                    obs = np.array([(parr[nb] == u).sum() for u in up])
+                    exp = len(nb) * gf
+                    msk = exp > 0
+                    stat = float(((obs[msk] - exp[msk]) ** 2 /
+                                  exp[msk]).sum())
+                    df = int(msk.sum() - 1)
+                    r = bool(df > 0 and stat > chi2dist.ppf(0.95, df))
+                    rej[protos[i]][int(r)] += 1
+                    rej_all += r
+                mix = {u: round(v[1] / max(1, v[0] + v[1]), 3)
+                       for u, v in rej.items()}
+                return mix, round(rej_all / len(protos), 3)
+            mix, overall = kbetscore(P)
             paper["joint"] = {
                 "n_cells": int(X.shape[0]), "n_genes_common": len(common),
                 "hvg": int(len(hv)), "pc_var12": var,
@@ -274,11 +281,40 @@ def main():
                         f"QC cells/protocol, seed {seed}"}
             paper["mixability"] = {
                 "per_protocol_rejection": mix,
-                "overall_rejection": round(rej_all / len(protos), 3),
+                "overall_rejection": overall,
                 "note": "kBET-style chi2 neighbourhood test "
-                        f"(k={KNN_MIX}, alpha=0.05); low = well mixed"}
+                        f"(k={KNN_MIX}, alpha=0.05) PRE-integration; "
+                        "low = well mixed"}
             print("joint: stored", X.shape[0], "cells; mixability overall",
-                  round(rej_all / len(protos), 3), flush=True)
+                  overall, flush=True)
+            # Harmony integration (protocol = batch) + post-integration score
+            try:
+                import harmonypy as hm
+                print("harmony: integrating", flush=True)
+                hres = hm.run_harmony(P, pd.DataFrame({"protocol": protos}),
+                                      "protocol", verbose=False)
+                Z = np.asarray(hres.result())
+                mix_i, overall_i = kbetscore(Z)
+                ztot = float((Z ** 2).sum())
+                zvar = [round(float((Z[:, k] ** 2).sum() / max(1e-9, ztot)), 4)
+                        for k in range(2)]
+                paper["joint_int"] = {
+                    "n_cells": int(Z.shape[0]), "pc_var12": zvar,
+                    "cells": [{"p": p, "s": s, "g": int(g),
+                               "x": round(float(a), 3),
+                               "y": round(float(b), 3)}
+                              for p, s, g, a, b in
+                              zip(protos, labs, ngs, Z[:, 0], Z[:, 1])],
+                    "note": "Harmony-corrected joint PCs 1-2 "
+                            "(protocol batch, harmonypy)"}
+                paper["mixability_int"] = {
+                    "per_protocol_rejection": mix_i,
+                    "overall_rejection": overall_i,
+                    "note": "same kBET-style test POST-Harmony integration"}
+                print("harmony: post-integration mixability",
+                      overall_i, flush=True)
+            except Exception as e:
+                print("harmony skipped:", repr(e), flush=True)
     except Exception as e:
         print("joint/mixability skipped:", repr(e), flush=True)
 
