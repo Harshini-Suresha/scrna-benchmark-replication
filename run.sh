@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One entry point. Usage: bash run.sh setup|download|prepare|inspect|analyse|test|serve
+# One entry point. Usage: bash run.sh setup|download|prepare|inspect|analyse|paper|test|serve
 set -euo pipefail
 case "${1:-help}" in
   setup)    python3 -m venv .venv && . .venv/bin/activate && pip install -q -r requirements.txt && echo "Activate with: source .venv/bin/activate" ;;
@@ -7,6 +7,7 @@ case "${1:-help}" in
   prepare)  python pipeline/prepare_data.py "${@:2}" ;;
   inspect)  python pipeline/inspect_data.py ;;
   analyse)  python pipeline/run_analysis.py ;;
+  paper)    python pipeline/paper_figures.py site/data/results.json && python pipeline/paper_figures.py site/data/results_mouse.json ;;"
   test)     bash tests/test_pipeline.sh ;;
   serve)    echo "http://localhost:8000  (add ?demo for synthetic preview)"; python -m http.server -d site 8000 ;;
   *) sed -n '2p' "$0" ;;

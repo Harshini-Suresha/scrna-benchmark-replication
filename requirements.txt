@@ -1,7 +1,7 @@
-numpy
-pandas
-scipy
-scikit-learn
-networkx>=3.0
-pyyaml
-umap-learn
+numpy==2.0.2
+pandas==2.3.3
+scipy==1.13.1
+scikit-learn==1.6.1
+networkx==3.2.1
+PyYAML==6.0.3
+umap-learn==0.5.12

@@ -3,8 +3,10 @@
 Reads data/processed/* in gene-blocks (memory-safe), accumulates per-cell
 n_genes / n_umis PRE-QC and per-gene totals, then stores compact percentiles
 and top-gene shares per protocol. Run after pipeline/run_analysis.py:
-    python pipeline/qc_distributions.py [results.json]
-Does not touch embeddings, clusters, or t-SNE output.
+    python pipeline/qc_distributions.py [results.json] [--dtype float32]
+Accumulator dtype flag (float64 default; float32 ≈2x faster on large
+matrices with negligible percentile differences). Does not touch
+embeddings, clusters, or t-SNE output.
 """
 import glob
 import json
@@ -17,7 +19,28 @@ viol_rng = __import__('numpy').random.default_rng(0)
 import numpy as np
 import pandas as pd
 
-RES = sys.argv[1] if len(sys.argv) > 1 else "site/data/results.json"
+RAW = sys.argv[1:]
+DTYPE = "float64"
+ARGS = []
+skip_next = False
+for i, a in enumerate(RAW):
+    if skip_next:
+        skip_next = False
+        continue
+    if a == "--dtype":
+        if i + 1 < len(RAW) and not RAW[i + 1].startswith("--"):
+            DTYPE = RAW[i + 1].strip()
+            skip_next = True
+        continue
+    if a.startswith("--dtype="):
+        DTYPE = a.split("=", 1)[1].strip()
+        continue
+    ARGS.append(a)
+if DTYPE not in ("float32", "float64"):
+    sys.exit("--dtype must be float32 or float64")
+print(f"accumulator dtype: {DTYPE}")
+
+RES = ARGS[0] if ARGS else "site/data/results.json"
 QS = [0, 10, 25, 50, 75, 90, 100]
 
 
@@ -25,7 +48,7 @@ def stats(path):
     sep = "\t" if (".tsv" in path or ".txt" in path) else ","
     ncells, umis, ngenes, gtot, gcnt, gnames = 0, None, None, None, None, []
     for ch in pd.read_csv(path, index_col=0, sep=sep, chunksize=2000):
-        v = ch.values.astype("float64")
+        v = ch.values.astype(DTYPE)
         if umis is None:
             ncells = v.shape[1]
             umis = np.zeros(ncells)

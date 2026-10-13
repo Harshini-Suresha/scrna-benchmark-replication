@@ -37,6 +37,7 @@ pre{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding
 <li><a href="#s9">Metric definitions</a></li>
 <li><a href="#s10">Paper vs replication map (Figs. 1–6)</a></li>
 <li><a href="#s11">Limitations and known artefacts</a></li>
+<li><a href="#s11b">Generalizability: tissues over species</a></li>
 <li><a href="#s12">Reproduce it / extend it</a></li>
 <li><a href="#s13">Results snapshot (live data)</a></li>
 </ol></div>
@@ -49,7 +50,7 @@ pre{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding
 
 <h2 id="s2">2. Input data: accessions, files, formats, quirks</h2>
 <h3>2.1 Where the data live</h3>
-<p>GSE133549 is a <b>SuperSeries with no files of its own</b>; count matrices live in 15 per-protocol SubSeries (plus GSE141469 for 10X V3). Base URL pattern:</p>
+<p>GSE133549 is a <b>SuperSeries with no files of its own</b>; count matrices live in 15 per-protocol SubSeries (plus GSE141469 for 10X V3), retrieved 2026-10-13 into <code>data/raw/</code> and processed the same day. Base URL pattern:</p>
 <pre>https://ftp.ncbi.nlm.nih.gov/geo/series/{PREFIX}nnn/{ACC}/suppl/
 # e.g. PREFIX=GSE133, ACC=GSE133540 ; GSE141469 uses PREFIX=GSE141</pre>
 <p>Each SubSeries ships 4 gzipped TSVs: <code>{ACC}_{PROTO}_human_exp_mat.tsv.gz</code>, <code>…_human_metada.tsv.gz</code> (note the authors' truncation, single "t"), and the mouse pair. This repo processes the <b>human</b> matrices only (largest table per SubSeries, picked automatically — §5.2).</p>
@@ -94,7 +95,7 @@ pre{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding
 <tr><td>networkx 3.2.1</td><td>Graph (<code>from_scipy_sparse_array</code> on the symmetrised kNN graph) + Louvain (<code>community.louvain_communities(G, resolution, seed)</code>)</td></tr>
 <tr><td>PyYAML 6.0.3</td><td><code>yaml.safe_load</code> of <code>config.yaml</code> / <code>config.synthetic.yaml</code></td></tr>
 </table></div>
-<p class="mut">Stdlib only otherwise (<code>json, glob, os, sys, datetime, tarfile, shutil</code>). Dev-only: pypdf (paper text extraction) and Pillow (docs) are not needed to run the pipeline. Known numerical note: <code>TruncatedSVD</code>'s randomized solver prints <code>RuntimeWarning</code> overflow/invalid lines on these matrices; output is unaffected (all protocols complete, metrics finite).</p>
+<p class="mut">Stdlib only otherwise (<code>json, glob, os, sys, datetime, tarfile, shutil</code>). Every analysis run embeds its software environment in <code>results.json: environment</code> (<code>pipeline/run_analysis.py:_env</code>: Python version plus numpy/pandas/scipy/scikit-learn/networkx/PyYAML/umap-learn versions and the UMAP-availability flag), so the table above can be audited per run instead of trusted from documentation. Dev-only: pypdf (paper text extraction) and Pillow (docs) are not needed to run the pipeline. Known numerical note: <code>TruncatedSVD</code>'s randomized solver prints <code>RuntimeWarning</code> overflow/invalid lines on these matrices; output is unaffected (all protocols complete, metrics finite).</p>
 
 <h2 id="s4">4. Configuration reference (every key)</h2>
 <p><code>config.yaml</code> (real data) and <code>config.synthetic.yaml</code> (smoke test; smaller <code>min_genes/max_cells/tsne_cells/repeats</code>) share these keys:</p>
@@ -120,7 +121,7 @@ pre{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding
 <div class="step"><div class="num">2</div><div><h3><code>pipeline/prepare_data.py ACC…</code> — raw → processed</h3><p>Extracts <code>*.tar*</code>, picks the <b>largest</b> table file per SubSeries (always the human matrix here), copies to <code>data/processed/{protocol}{ext}</code> via a hardcoded accession→protocol MAP (GSE133535→10X_2x5K_250K … GSE141469→10X_V3). Prints chosen vs alternative files — verify the choice.</p></div></div>
 <div class="step"><div class="num">3</div><div><h3><code>pipeline/inspect_data.py</code> — diagnose before analysis</h3><p>Per file: rows/cols, numeric-column fraction, integer-count check (False ⇒ already normalised ⇒ assumptions break), orientation guess, metadata barcode overlap. Its row-name display misreads corner-less TSVs (shows <code>nan</code>); the analyser is unaffected.</p></div></div>
 <div class="step"><div class="num">4</div><div><h3><code>pipeline/run_analysis.py [config]</code> — the analysis</h3><p>Sections §6.1–§6.8: chunked load → QC → equalise → normalise/HVG/PCA → kNN+Louvain → score → <code>results.json</code> (+ auto <code>.js</code> fallback). Preserves previously curated <code>discrepancies</code> across re-runs. Guards: protocols with &lt;50 cells or &lt;100 genes post-QC are skipped into <code>errors</code>, not crashed on.</p></div></div>
-<div class="step"><div class="num">5</div><div><h3><code>pipeline/qc_distributions.py [results.json]</code> — pre-QC distributions</h3><p>Second chunked pass (<code>chunksize=2000</code>, float64 accumulators) over the same matrices: per-cell genes/UMIs percentiles, genes seen in ≥1/≥3 cells, top-50/200 count shares, top-5 gene IDs. Merged into each protocol's <code>qc_dist</code> (powers Quality Figs. R6–R8), including a ≤1000-cell per-cell sample (<code>cell_sample{genes,umis}</code>) backing the R13 violins.</p></div></div>
+<div class="step"><div class="num">5</div><div><h3><code>pipeline/qc_distributions.py [results.json] [--dtype float32]</code> — pre-QC distributions</h3><p>Second chunked pass (<code>chunksize=2000</code>, float64 accumulators) over the same matrices: per-cell genes/UMIs percentiles, genes seen in ≥1/≥3 cells, top-50/200 count shares, top-5 gene IDs. Merged into each protocol's <code>qc_dist</code> (powers Quality Figs. R6–R8), including a ≤1000-cell per-cell sample (<code>cell_sample{genes,umis}</code>) backing the R13 violins. <code>--dtype float32</code> halves peak chunk memory (≈2× faster on large matrices) with identical rounded outputs; default float64 preserves existing results bit-for-bit.</p></div></div>
 <div class="step"><div class="num">6</div><div><h3><code>pipeline/similarity.py [results.json]</code> — cross-protocol similarity</h3><p>Two chunked passes per matrix: (1) per-cell gene counts → QC mask (≥ min_genes) → fixed ≤100-cell sample (seed 0); (2) per-gene sums over QC cells + sampled presence submatrix. Then: gene intersection across protocols (common genes) → mean CP10K per gene → log1p → Pearson matrix; cumulative union genes over 1–100 cells, mean of 3 shuffles. Writes <code>d["similarity"]</code> (+ <code>.js</code>).</p></div></div>
 <div class="step"><div class="num">7</div><div><h3><code>pipeline/make_synthetic.py</code> + <code>tests/test_pipeline.sh</code> — smoke test</h3><p>Generates 3 synthetic protocols (1200 genes; depths 4000/1500/700; 400 cells each) into <code>data/synthetic/</code>, runs the analyser with <code>config.synthetic.yaml</code> → <code>site/data/demo.json</code>, asserts 3 protocols and ARI&gt;0.5. Output is <b>never</b> real data; the dashboard's <code>?demo</code> mode loads it.</p></div></div>
 </div>
@@ -162,6 +163,10 @@ pre{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding
 <tr><td>Quality</td><td><b>R1a/R1b</b> log-scale median bars (genes, UMIs) · <b>R2</b> log–log bubble plot (area ∝ QC-pass cells; labels de-overlapped with leader lines, edge-flipped) · <b>R3</b> input→QC-pass retention bars · genes-per-1K-UMIs efficiency · <b>R6/R7</b> pre-QC per-cell distribution plots (whiskers min–max, box IQR, thick median, thin P10/P90) · <b>R8</b> top-50/200 concentration bars · <b>R13a/b</b> KDE violin distributions (rotated labels) (≤1000 QC-pass cells, Silverman bandwidth, IQR bar + median dot).</td></tr>
 <tr><td>Clustering</td><td><b>R4a</b> stability mean ± SD (axis fixed 0.5–1.0) · <b>R4b</b> Louvain community counts · honest empty-state for ARI/NMI/silhouette · per-protocol cluster-size distributions from the t-SNE subset · <b>R14/R15</b> Tukey box plots of genes/UMIs per cluster (same subset, protocol selector) · <b>R16a–c</b> embedding gallery (t-SNE/PCA/UMAP side-by-side, same cells) · <b>R16d</b> PCA scree with 80% mark · <b>R17</b> communities-vs-genes scatter with Pearson r.</td></tr>
 <tr><td>Benchmark</td><td><b>R5</b> Fig. 6-style dot plot (5 min–max metrics, vertical headers, orange arithmetic-mean composite + paper ranks) with value table · <b>R9</b> paper-vs-replication rank bump chart.</td></tr>
+<tr><td>Generalizability</td><td><b>R18</b> human-vs-mouse median-genes scatter (log–log + identity, Pearson r) · <b>R19</b> human-vs-mouse rank bump · <b>R20</b> stability human-vs-mouse paired dots · <b>R27</b> median-counts concordance · <b>R28</b> stability gap (mouse − human) · <b>R29</b> human-vs-mouse ARI · <b>R30</b> per-species composite-rank bump. Joint 15 protocols; needs both JSONs.</td></tr>
+<tr><td>Signatures</td><td><b>R21</b> depth-adjusted complexity (residual genes vs depth trend) · <b>R22</b> cell heterogeneity (CV of genes/UMIs from cellstat) · <b>R23</b> cluster evenness (k vs effective k = exp entropy) · <b>R24</b> accuracy vs precision (ARI vs stability, size ∝ k) · <b>R25</b> species capture (stacked Human/Mouse/Doublet/Dog) · <b>R26</b> marker definition (union markers vs strength, size ∝ k) · <b>R31</b> count efficiency · <b>R32</b> capture skew (mean/median) · <b>R33</b> rarefaction increment (50→100 cells) · <b>R34</b> k vs stability · <b>R35</b> silhouette vs ARI · <b>R36</b> NMI vs ARI · <b>R37</b> stability SD · <b>R38</b> cluster dominance · <b>R39</b> total PCA variance · <b>R40</b> markers per cluster · <b>R41</b> marker strength ranking · <b>R42</b> marker-set Jaccard heatmap · <b>R43</b> expression hubness · <b>R44</b> rarefaction endpoint · <b>R45</b> early saturation · <b>R46</b> doublet rate · <b>R47</b> spike-in recovery · <b>R48</b> silhouette ranking · <b>R49</b> rank instability · <b>R50</b> PC1 dominance.</td></tr>
+<tr><td>Paper</td><td>Paper-figure analogues from <code>pipeline/paper_figures.py</code> (<code>results.json: paper</code>): <b>P1</b> species composition (Fig. 1) · <b>P2</b> read mapping by location (Fig. 1) · <b>P3</b> depth-equalised genes via binomial thinning (Fig. 2d–e) · <b>P4</b> dropout vs expression (Fig. 2f) · <b>P5</b> joint HVG-PCA (Fig. 3a–b) · <b>P6</b> kBET-style mixability (Fig. 5g–h). Species-mix labels stand in for cell types throughout. 56 figures in total (R1–R50 + P1–P6).</td></tr>
+<tr><td>Datasets</td><td>GEO accession catalogue plus download centre (JSON + full-metrics/markers/composition/correlation/cumulative/QC CSVs, generated client-side) and full data tables: metrics, label agreement, composition, QC percentiles, embedded software environment.</td></tr>
 <tr><td>Protocols</td><td>Per-protocol deep-dive cards: full metric table with Δ-vs-best, auto interpretation, paper-rank badge, cluster distribution.</td></tr>
 <tr><td>Markers</td><td><b>R10</b> dot plot (union top markers × clusters; size = fraction, shade = gene-normalised mean) with protocol selector.</td></tr>
 <tr><td>Similarity</td><td><b>R11</b> correlation heatmap (common genes, composite-rank order) · <b>R12</b> cumulative-gene curves with end labels.</td></tr>
@@ -172,17 +177,18 @@ pre{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding
 </table></div>
 <p class="mut">Every figure card carries a numbered caption and a collapsible methods/provenance note; every SVG has a Download button and <code>&lt;title&gt;</code> tooltips. Scales/axes/ranges are computed from live data (no magic constants), except the R4a axis which is fixed to [0.5, 1.0] by definition of the stability range.</p>
 
-<h2 id="s9">9. Metric definitions</h2>
+<h2 id="s9">9. Metric definitions and reporting standard</h2>
 <div class="card wrap"><table>
-<tr><th>Metric</th><th>Definition</th></tr>
-<tr><td>Median genes / UMIs</td><td>Median over QC-pass cells, full-depth (paper: 20K-read equalised per cell type).</td></tr>
-<tr><td>Retention</td><td>QC-pass / input cells (min_genes ≥ 200; mito gate inert here).</td></tr>
-<tr><td>ARI</td><td>Adjusted Rand index: clustering agreement corrected for chance; 1 = identical, ≈0 = random.</td></tr>
-<tr><td>NMI / silhouette</td><td>Normalised mutual information [0,1]; silhouette cohesion-vs-separation [−1,1] (≈ paper's ASW).</td></tr>
-<tr><td>Stability</td><td>Mean ± SD of ARI(full labels, re-clustered 80% subsample) over 5 seeded repeats — precision, not accuracy.</td></tr>
-<tr><td>Composite</td><td>Min–max normalise each metric across processed protocols; arithmetic mean (paper: harmonic mean of 6 — degenerate to 0 under few-protocol min–max, hence the switch, documented on the Benchmark tab).</td></tr>
-<tr><td>Concentration</td><td>Share of all counts in the top-50/200 expressed genes; even coverage preserves rare transcripts.</td></tr>
+<tr><th>Metric</th><th>Estimator, range, and reporting</th></tr>
+<tr><td>Median genes / counts</td><td>Median over QC-pass cells at full depth (paper: 20K reads cell<sup>−1</sup> per cell type). Log<sub>10</sub> axes; protocols ordered descending. UMI and read-count chemistries estimate distinct quantities.</td></tr>
+<tr><td>Retention</td><td>QC-pass / input cells (min_genes ≥ 200; mito gate inoperative on ENSEMBL IDs).</td></tr>
+<tr><td>ARI / NMI / silhouette</td><td>ARI ∈ [−1,1] (≈0, chance); NMI ∈ [0,1]; silhouette ∈ [−1,1] (≈ paper ASW). Require &gt;50% labelled cells; silhouette on ≤2,000 cells. Current labels are species-level, so ARI indexes species agreement, not cell-type accuracy.</td></tr>
+<tr><td>Stability</td><td>Mean ± SD (n = 5 seeded 80% re-embeddings/re-clusterings) of ARI(full, subsample). Axis fixed [0.5,1.0]. Precision, not accuracy.</td></tr>
+<tr><td>Composite</td><td>Per-metric min–max over the processed set; arithmetic mean (paper: harmonic mean of 6 at 20K reads — degenerate under few-protocol min–max). Set-relative; rescaling on protocol addition.</td></tr>
+<tr><td>Concentration / heterogeneity / evenness</td><td>Top-50/200 count shares; CV = SD/mean across cells (R22); effective k = exp(Shannon entropy), evenness = H/log k (R23).</td></tr>
+<tr><td>Residuals (R21)</td><td>OLS residual of log<sub>10</sub> genes on log<sub>10</sub> counts across protocols; + exceeds depth expectation.</td></tr>
 </table></div>
+<p class="mut">Legend standard: every figure states the display, estimator, n, transform, ordering, and error representation. Claims are scoped to the processed set and depth standardisation.</p>
 
 <h2 id="s10">10. Paper vs replication map (Figs. 1–6)</h2>
 <div class="card wrap"><table>
@@ -197,16 +203,18 @@ pre{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding
 <tr><td>Fig. 6 overall score</td><td>Harmonic mean of 6 metric scores</td><td>Benchmark tab: dot plot + arithmetic-mean composite + rank bump chart</td><td>Approximate</td></tr></table></div>
 <p class="mut">"Cluster accuracy" is undefined in the accessible text; ARI/NMI are stand-ins. Subsample stability is an added metric, not from the paper.</p>
 
-<h2 id="s11">11. Limitations and known artefacts</h2>
+<h2 id="s11">11. Threats to validity and known artefacts</h2>
 <div class="card note"><ul style="margin:6px 0;padding-left:20px">
-<li><b>No reference labels</b> (GEO supplements lack them): ARI/NMI/silhouette absent; stability measures precision only.</li>
-<li><b>No read-depth equalisation</b>: full-depth medians conflate depth with efficiency; Smart-seq2/C1HT/ICELL8 "UMIs" are non-UMI read counts and not comparable to UMI counts.</li>
-<li><b>Mito QC inert</b>: ENSEMBL IDs never match <code>MT-</code>/<code>MT.</code> (the transcripts are present — e.g. MT-ND1 = ENSG00000198888 — but invisible to a prefix match); retention reflects only the min_genes cut.</li>
-<li><b>Different clustering stack</b> (Louvain/30 PCs/k=15/res=1.0 vs Seurat/8 PCs/res=0.6), variance-based HVGs, equalised cells (not reads).</li>
-<li><b>Composite ≠ paper score</b>: 5 available full-depth metrics, arithmetic mean, few-protocol min–max — ranking signal only.</li>
-<li><b>Species doublets retained</b>; mouse/dog cells included in human-matrix totals as mapped.</li>
-<li><b>TruncatedSVD RuntimeWarnings</b> (overflow/invalid) are cosmetic; all outputs finite and verified.</li>
+<li><b>Construct.</b> Full-depth medians conflate depth with efficiency (mitigated by R21 residualisation); UMI and read counts mixed; mito gate void on ENSEMBL IDs; Louvain/30-PC/res-1.0 stack differs from Seurat/8-PC/res-0.6; variance HVGs differ from paper; current labels are species-level, so label agreement ≠ cell-type accuracy.</li>
+<li><b>Internal.</b> Single master seed (0); 5 stability repeats; min–max composites are set-relative and rescale on protocol addition.</li>
+<li><b>External.</b> One batch, two tissues, no 20K-read standardisation — rankings are conditional. Cross-tissue checks (R18–R20) bound, but do not remove, this limit.</li>
+<li><b>Artefacts.</b> Species doublets retained in matrix totals; TruncatedSVD RuntimeWarnings are cosmetic (outputs finite and verified); software versions are embedded per run (<code>results.json: environment</code>); <code>paper.mapping</code> shares are null where GEO QC supplements lack read-location columns (P2 omits those protocols), and all JSON output is strictly parseable (no NaN).</li>
 </ul></div>
+
+<h2 id="s11b">11b. Generalizability: more tissues, not more species</h2>
+<div class="card"><p>Human + mouse is sufficient for protocol benchmarking — the ranking signal comes from protocol chemistry, not species count. For better generalizability, add more <b>tissues / complexities / depths with the same 2 species</b> (e.g. heterogeneous vs homogeneous tissue, high- vs low-RNA-content cells, full depth vs downsampled to 20K reads/cell), not new species.</p>
+<p>New species add confounders without changing the ranking: annotation completeness, mito-gene prefixes (<code>mito_prefixes</code> in <code>config.yaml</code>), ortholog mapping, and dissociation bias. Add a species only to test species-mixing doublet detection or cross-species mapping.</p>
+<p><b>Implemented as dashboard tab <code>Generalizability</code></b> (loads <code>results.json</code> + <code>results_mouse.json</code> jointly; 15 shared protocols): <b>R18</b> median-genes human-vs-mouse scatter (log–log, Pearson r ≈ 0.84) · <b>R19</b> human-vs-mouse rank bump (parallel = generalizable) · <b>R20</b> stability human (dot) vs mouse (square) per protocol.</p></div>
 
 <h2 id="s12">12. Reproduce it / extend it</h2>
 <pre>bash run.sh setup && source .venv/bin/activate

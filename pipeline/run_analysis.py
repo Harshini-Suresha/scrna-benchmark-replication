@@ -88,7 +88,25 @@ try:
     old_out = json.load(open(cfg["output"]))
 except Exception:
     pass
-out = {"generated": datetime.datetime.now(datetime.timezone.utc).isoformat(), "config": cfg, "cells_per_protocol": int(n_use), "protocols": [], "discrepancies": old_out.get("discrepancies", []), "similarity": old_out.get("similarity", {}), "errors": errors}
+def _env():
+    import platform
+    e = {"python": platform.python_version(), "packages": {}, "umap_available": HAS_UMAP}
+    for mod, dist in [("numpy", "numpy"), ("pandas", "pandas"), ("scipy", "scipy"), ("sklearn", "scikit-learn"),
+                      ("networkx", "networkx"), ("yaml", "PyYAML"), ("umap", "umap-learn")]:
+        try:
+            m = __import__(mod)
+            v = getattr(m, "__version__", None) or __import__("importlib.metadata").metadata.version(dist)
+            e["packages"][dist] = str(v)
+        except Exception as ex:
+            e["packages"][dist] = "unknown (%s)" % ex
+    return e
+try:
+    _environment = _env()
+except Exception as ex:
+    _environment = {"error": repr(ex)}
+    if isinstance(old_out.get("environment"), dict):
+        _environment = old_out["environment"]
+out = {"generated": datetime.datetime.now(datetime.timezone.utc).isoformat(), "config": cfg, "environment": _environment, "cells_per_protocol": int(n_use), "protocols": [], "discrepancies": old_out.get("discrepancies", []), "similarity": old_out.get("similarity", {}), "paper": old_out.get("paper", {}), "errors": errors}
 for p, (X, genes, cells, ng, um, mito) in data.items():
     row = {"protocol": p, "cells_pass_qc": int(len(cells)), "median_genes": float(np.median(ng)),
            "median_umis": float(np.median(um)), "median_mito_pct": float(np.median(mito))}

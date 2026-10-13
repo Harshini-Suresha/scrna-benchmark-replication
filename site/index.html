@@ -3,10 +3,10 @@
 <title>scRNA-seq Protocol Benchmark: Replication Dashboard</title>
 <style>
 :root{
- --bg:#fbe7ec;--fg:#1d1d1b;--mut:#67665f;--card:#ffffff;--bd:#e4e3da;--bd2:#d3d2c7;
- --ac:#0e6b54;--ac-soft:#e2f2ec;--ac2:#d85a30;--warn:#a32d2d;--wbg:#fcebeb;--grid:#dcdcd2;
- --shadow:0 1px 2px rgba(30,30,20,.05),0 4px 14px rgba(30,30,20,.06);
- --r:14px;--font:system-ui,-apple-system,"Segoe UI",Inter,Roboto,sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+ --bg:#f4f5f7;--fg:#1a1d21;--mut:#5f6b76;--card:#ffffff;--bd:#e2e5ea;--bd2:#cbd1d9;
+ --ac:#0e6b54;--ac-soft:#e6f2ed;--ac2:#c25e3a;--warn:#8a1f1f;--wbg:#fdf0f0;--grid:#e2e5ea;
+ --shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.08);
+ --r:10px;--font:system-ui,-apple-system,"Segoe UI",Inter,Roboto,sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,monospace;
 }
 @media(prefers-color-scheme:dark){:root{
  --bg:#141412;--fg:#ebe9e2;--mut:#a09e93;--card:#1f1f1b;--bd:#33322c;--bd2:#45443a;
@@ -39,9 +39,9 @@ main{max-width:1140px;margin:auto;padding:26px 22px 40px;min-height:60vh}
 .mut{color:var(--mut);font-size:13px}
 a{color:var(--ac)}
 /* hero */
-.hero{background:linear-gradient(135deg,var(--ac-soft),var(--card) 70%);border:1px solid var(--bd);border-radius:calc(var(--r) + 4px);padding:22px 24px;margin-bottom:6px;box-shadow:var(--shadow)}
-.hero h2{border:none!important;padding:0!important;margin:0 0 6px!important;font-size:13px;text-transform:uppercase;letter-spacing:.1em;color:var(--ac)}
-.hero p{margin:6px 0;font-size:15px}
+.hero{background:var(--card);border:1px solid var(--bd);border-radius:var(--r);padding:18px 20px;margin-bottom:12px;box-shadow:var(--shadow)}
+.hero h2{border:none!important;padding:0!important;margin:0 0 6px!important;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut)}
+.hero p{margin:6px 0;font-size:14.5px}
 /* kpis */
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:14px 0}
 .kpi{margin:0!important}
@@ -95,7 +95,7 @@ code{font-family:var(--mono);font-size:.88em;background:var(--bg);border:1px sol
 </style>
 </head><body><header class="topbar"><div class="topbar-in">
 <div class="brand"><div class="mark"></div><div><h1>scRNA-seq protocol benchmark</h1>
-<div class="sub">Partial replication of Mereu, Lafzi et al., Nat Biotechnol 38:747 (2020) · <a href="https://doi.org/10.1038/s41587-020-0469-4">paper</a> · <a href="https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE133549">GSE133549</a> · <a href="https://github.com/ati-lz/HCA_Benchmarking">authors' R code</a> · <a href="methodology.html"><b>how it works</b></a></div></div></div>
+<div class="sub">Computational replication of Mereu, Lafzi et al., <i>Nat Biotechnol</i> 38:747–755 (2020) · <a href="https://doi.org/10.1038/s41587-020-0469-4">paper</a> · <a href="https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE133549">GSE133549</a> · <a href="https://github.com/ati-lz/HCA_Benchmarking">authors' code</a> · <a href="methodology.html"><b>methods</b></a> · full-depth counts unless stated; scope and deviations documented</div></div></div>
 <div class="spec" id="spec"><button data-s="human" class="on">Human</button><button data-s="mouse">Mouse</button></div><nav id="tabs"></nav></div></header><main><div id="view"></div>
 </main><footer class="footer"><div class="footer-in"><span>Replication dashboard · Mereu et al. 2020 · GEO GSE133549</span><span><a href="methodology.html">Methodology</a> · <a href="data/results.json">results.json</a> · <a href="?demo">demo mode</a></span></div></footer>
 <script src="data/results.js"></script>
@@ -234,6 +234,77 @@ function figCum(){const S=D.similarity,ord=simOrder().filter(n=>S.cumulative[n])
  ord.forEach((n,i)=>{const cx=x0+(i%per)*124,cy=y1+52+Math.floor(i/per)*17;
   s+=`<rect x="${cx}" y="${cy-10}" width="11" height="11" fill="${cmap[n]}"><title>${esc(n)}: ${S.cumulative[n][99].toLocaleString()} genes</title></rect><text x="${cx+15}" y="${cy}">${esc(n)}</text>`;});
  return {svg:s,H:y1+52+rowsL*17+8,W:x1+24}; }
+/* Paper-figure analogues (Mereu et al. Figs. 1/2/3/5): composition, mapping,
+   depth-equalised genes, dropout, joint HVG-PCA, mixability. All defensive:
+   panels render only when D.paper carries the block. */
+const SPCCOL={Human:'#0f6e56',Mouse:'#d85a30',Doublet:'#378add',Dog:'#ba7517',NA:'#888780'};
+const MAPCOL={exonic:'#0f6e56',intronic:'#d85a30',intergenic:'#378add',unmapped:'#888780'};
+function figStacked(rows,cats,colors){const x0=150,x1=560,y0=20,rh=56,H=y0+rows.length*rh+46;let s='';
+ rows.forEach((r,i)=>{const y=y0+i*rh+12;let x=x0;
+  s+=`<text x="${x0-8}" y="${y+15}" text-anchor="end" style="fill:var(--fg)">${esc(r.name)}</text>`;
+  cats.forEach(c=>{const f=r.fracs[c]||0,w=(x1-x0)*f;
+   if(w>0.75)s+=`<rect x="${x.toFixed(1)}" y="${y}" width="${w.toFixed(1)}" height="20" fill="${colors[c]}"><title>${esc(r.name)} · ${c}: ${(f*100).toFixed(1)}%</title></rect>`;
+   x+=w;});
+  s+=`<text x="${x1+8}" y="${y+15}">${r.suffix||''}</text>`;});
+ cats.forEach((c,i)=>{s+=`<rect x="${x0+i*140}" y="${H-26}" width="11" height="11" fill="${colors[c]}"/><text x="${x0+i*140+15}" y="${H-16}">${c}</text>`;});
+ return {svg:s,H};}
+function figDepth(mode){const P=D.paper.depths,Ds=P.depths;
+ const order=[...D.protocols].sort((a,b)=>b.median_genes-a.median_genes).map(p=>p.protocol).filter(n=>P.per_protocol[n]&&Object.keys(P.per_protocol[n]).length);
+ const x0=64,x1=560,y0=16,y1=300;let s='';
+ const allV=order.flatMap(n=>Ds.map(k=>P.per_protocol[n][String(k)]).filter(Boolean).map(r=>(r[mode]??r.all)));
+ if(!allV.length)return null;
+ const hi=Math.max(...allV)*1.12;
+ const X=k=>x0+(Math.log10(k)-Math.log10(Ds[0]))/(Math.log10(Ds[Ds.length-1])-Math.log10(Ds[0]))*(x1-x0),Y=g=>y1-g/hi*(y1-y0);
+ for(let g=0;g<=hi;g+=1000){const y=Y(g);s+=`<line class="grid" x1="${x0}" y1="${y.toFixed(1)}" x2="${x1}" y2="${y.toFixed(1)}"/><text x="${x0-8}" y="${(y+4).toFixed(1)}" text-anchor="end">${g>=1000?(g/1000)+'k':g}</text>`;}
+ Ds.forEach(k=>{s+=`<text x="${X(k).toFixed(1)}" y="${y1+18}" text-anchor="middle">${k>=1000?(k/1000)+'k':k}</text>`;});
+ s+=`<text x="${(x0+x1)/2}" y="${y1+34}" text-anchor="middle">Thinned UMIs per cell</text><text x="14" y="${(y0+y1)/2}" text-anchor="middle" transform="rotate(-90 14 ${(y0+y1)/2})">Median genes detected</text>`;
+ const cmap={};D.protocols.forEach((p,i)=>cmap[p.protocol]=PAL[i%10]);
+ order.forEach(n=>{const R=P.per_protocol[n];
+  const pts=Ds.filter(k=>R[String(k)]&&(R[String(k)][mode]??R[String(k)].all)!=null).map(k=>`${X(k).toFixed(1)},${Y(R[String(k)][mode]??R[String(k)].all).toFixed(1)}`).join(' ');
+  if(pts)s+=`<polyline points="${pts}" fill="none" stroke="${cmap[n]}" stroke-width="2"><title>${esc(n)}${mode!=='all'?' · '+mode:''}</title></polyline>`;});
+ const per=4,rowsL=Math.ceil(order.length/per);
+ order.forEach((n,i)=>{const cx=x0+(i%per)*124,cy=y1+52+Math.floor(i/per)*17;
+  s+=`<rect x="${cx}" y="${cy-10}" width="11" height="11" fill="${cmap[n]}"><title>${esc(n)}</title></rect><text x="${cx+15}" y="${cy}">${esc(n)}</text>`;});
+ return {svg:s,H:y1+52+rowsL*17+8,W:x1+24};}
+function figDropout(){const O=D.paper.dropout,names=Object.keys(O);if(!names.length)return null;
+ const x0=64,x1=600,y0=16,y1=300;let s='';
+ const allX=names.flatMap(n=>O[n].x.filter(v=>v!=null)),allY=names.flatMap(n=>O[n].y.filter(v=>v!=null));
+ const loX=Math.min(...allX),hiX=Math.max(...allX);
+ const X=v=>x0+(v-loX)/Math.max(1e-9,hiX-loX)*(x1-x0),Y=v=>y1-v*(y1-y0);
+ for(let f=0;f<=1.01;f+=0.2){const y=Y(f);s+=`<line class="grid" x1="${x0}" y1="${y.toFixed(1)}" x2="${x1}" y2="${y.toFixed(1)}"/><text x="${x0-8}" y="${(y+4).toFixed(1)}" text-anchor="end">${f.toFixed(1)}</text>`;}
+ s+=`<text x="${(x0+x1)/2}" y="${y1+34}" text-anchor="middle">Mean expression (log1p CP10K), binned</text><text x="14" y="${(y0+y1)/2}" text-anchor="middle" transform="rotate(-90 14 ${(y0+y1)/2})">Dropout probability</text>`;
+ const cmap={};D.protocols.forEach((p,i)=>cmap[p.protocol]=PAL[i%10]);
+ names.forEach(n=>{const pts=O[n].x.map((x,i)=>O[n].y[i]==null?null:`${X(x).toFixed(1)},${Y(O[n].y[i]).toFixed(1)}`).filter(Boolean).join(' ');
+  if(pts)s+=`<polyline points="${pts}" fill="none" stroke="${cmap[n]||'#888'}" stroke-width="2"><title>${esc(n)}</title></polyline>`;});
+ const per=4,rowsL=Math.ceil(names.length/per);
+ names.forEach((n,i)=>{const cx=x0+(i%per)*124,cy=y1+52+Math.floor(i/per)*17;
+  s+=`<rect x="${cx}" y="${cy-10}" width="11" height="11" fill="${cmap[n]||'#888'}"><title>${esc(n)}</title></rect><text x="${cx+15}" y="${cy}">${esc(n)}</text>`;});
+ return {svg:s,H:y1+52+rowsL*17+8,W:x1+24};}
+function figJoint(mode){const J=D.paper.joint;if(!J||!J.cells||!J.cells.length)return null;
+ const C=J.cells,W=620,H=360,x0=64,x1=W-24,y0=16,y1=300;let s='';
+ const xs=C.map(c=>c.x),ys=C.map(c=>c.y);
+ const xa=Math.min(...xs),xb=Math.max(...xs),ya=Math.min(...ys),yb=Math.max(...ys);
+ const X=v=>x0+(v-xa)/Math.max(1e-9,xb-xa)*(x1-x0),Y=v=>y1-(v-ya)/Math.max(1e-9,yb-ya)*(y1-y0);
+ s+=`<text x="${(x0+x1)/2}" y="${y1+34}" text-anchor="middle">Joint PC1 (${(100*J.pc_var12[0]).toFixed(1)}%)</text><text x="14" y="${(y0+y1)/2}" text-anchor="middle" transform="rotate(-90 14 ${(y0+y1)/2})">Joint PC2 (${(100*J.pc_var12[1]).toFixed(1)}%)</text>`;
+ let col,leg;
+ if(mode==='species'){const u=[...new Set(C.map(c=>c.s))].sort();
+  col=c=>SPCCOL[c.s]||'#888';
+  leg=u.map(k=>`<span><i style="background:${SPCCOL[k]||'#888'}"></i>${esc(k)} (${C.filter(c=>c.s===k).length})</span>`).join('');
+ }else if(mode==='genes'){const lv=C.map(c=>Math.log10(Math.max(1,c.g))),mn=Math.min(...lv),mx=Math.max(...lv);
+  col=c=>{const t=(Math.log10(Math.max(1,c.g))-mn)/Math.max(1e-9,mx-mn);const a=[253,244,232],b=[14,107,84];return `rgb(${a.map((x,j)=>Math.round(x+(b[j]-x)*t)).join(',')})`;};
+  leg=`<span class="mut">low → high genes per cell</span>`;
+ }else{const u=[...new Set(C.map(c=>c.p))].sort();const cmap={};D.protocols.forEach((p,i)=>cmap[p.protocol]=PAL[i%10]);
+  col=c=>cmap[c.p]||'#888';
+  leg=u.map(k=>`<span><i style="background:${cmap[k]||'#888'}"></i>${esc(k)} (${C.filter(c=>c.p===k).length})</span>`).join('');}
+ C.forEach(c=>{s+=`<circle cx="${X(c.x).toFixed(1)}" cy="${Y(c.y).toFixed(1)}" r="2.4" fill="${col(c)}" opacity="0.75"><title>${esc(c.p)} · ${esc(c.s)} · ${c.g} genes</title></circle>`;});
+ return {svg:s,H,W,leg};}
+function figMix(){const M=D.paper.mixability;if(!M)return null;
+ const rows=Object.entries(M.per_protocol_rejection).sort((a,b)=>a[1]-b[1]);
+ const x0=150,x1=600,y0=20,rh=56,H=y0+rows.length*rh+40;let s='';
+ for(let f=0;f<=1.01;f+=0.25){const x=x0+f*(x1-x0);s+=`<line class="grid" x1="${x.toFixed(1)}" y1="${y0}" x2="${x.toFixed(1)}" y2="${H-30}"/><text x="${x.toFixed(1)}" y="${H-12}" text-anchor="middle">${Math.round(f*100)}%</text>`;}
+ rows.forEach(([n,v],i)=>{const y=y0+i*rh+12,c=PAL[D.protocols.findIndex(p=>p.protocol===n)%10]||'#0f6e56';
+  s+=`<text x="${x0-8}" y="${y+15}" text-anchor="end" style="fill:var(--fg)">${esc(n)}</text><rect x="${x0}" y="${y}" width="${(v*(x1-x0)).toFixed(1)}" height="20" rx="4" fill="${c}"><title>${esc(n)}: ${(v*100).toFixed(1)}% neighbourhoods reject mixing</title></rect><text x="${(x0+v*(x1-x0)+6).toFixed(1)}" y="${y+15}">${(v*100).toFixed(0)}%</text>`;});
+ return {svg:s,H};}
 function qnt(sortedArr,q){if(!sortedArr.length)return NaN;const i=(sortedArr.length-1)*q,a=Math.floor(i);return sortedArr[a]+(sortedArr[Math.min(sortedArr.length-1,a+1)]-sortedArr[a])*(i-a);}
 function kdeViol(vals,lo,hi){const l=vals.map(v=>Math.log10(Math.max(1,v))).sort((a,b)=>a-b);
  const m=l.reduce((a,v)=>a+v,0)/l.length,sd=Math.sqrt(l.reduce((a,v)=>a+(v-m)*(v-m),0)/l.length)||0.3;
@@ -316,6 +387,296 @@ function figBench(){const {cols,rows}=benchScores();const cw=64,x0=170,y0=132,rh
     const hx=compX,hr=(3+9*r.hm).toFixed(1);s+=`<circle cx="${hx}" cy="${y}" r="${hr}" fill="#d85a30" stroke="#1c1c1a" stroke-width="1"><title>${esc(r.p.protocol)} composite (harmonic mean): ${r.hm.toFixed(2)}</title></circle><text x="${hx+16}" y="${y+4}" style="fill:var(--fg);font-weight:700">${r.hm.toFixed(2)}</text>`;});
   return {svg:s,H,W};}
 
+/* Fig R18-R20: generalizability — same protocols, human vs mouse (tissue/complexity/depth shift) */
+let DH=null, DM=null;
+async function fetchJson(urls){let last=new Error('no url');for(const u of urls){try{const r=await fetch(u);if(r.ok)return r.json();last=new Error(u+' → HTTP '+r.status);}catch(e){last=e;}}throw last;}
+async function ensureBoth(){if(DH&&DM)return [DH,DM];
+  const Hurls=['data/results.json','./data/results.json','site/data/results.json'],Murls=['data/results_mouse.json','./data/results_mouse.json','site/data/results_mouse.json'];
+  try{DH=DH||await fetchJson(Hurls);}catch(e){if(window.RESULTS&&window.RESULTS.protocols)DH=window.RESULTS;}
+  try{DM=DM||await fetchJson(Murls);}catch(e){if(window.RESULTS_MOUSE&&window.RESULTS_MOUSE.protocols)DM=window.RESULTS_MOUSE;}
+  if(!DH||!DM)throw new Error('need both results.json and results_mouse.json');
+  return [DH,DM];}
+function genJoin(){const m={};DH.protocols.forEach(p=>m[p.protocol]={h:p});DM.protocols.forEach(p=>{(m[p.protocol]=m[p.protocol]||{})['m']=p;});return Object.entries(m).filter(([k,v])=>v.h&&v.m).map(([k,v])=>({name:k,h:v.h,m:v.m}));}
+function pearson(a,b){const m1=a.reduce((x,y)=>x+y,0)/a.length,m2=b.reduce((x,y)=>x+y,0)/b.length;let n=0,d1=0,d2=0;for(let i=0;i<a.length;i++){n+=(a[i]-m1)*(b[i]-m2);d1+=(a[i]-m1)*(a[i]-m1);d2+=(b[i]-m2)*(b[i]-m2);}return n/Math.sqrt(d1*d2);}
+function figGenScatter(){const J=genJoin(),x0=64,x1=560,y0=16,y1=280;
+  const lx=J.map(j=>Math.log10(j.h.median_genes)),ly=J.map(j=>Math.log10(j.m.median_genes));
+  const lo=Math.floor(Math.min(...lx,...ly)*10)/10,hi=Math.ceil(Math.max(...lx,...ly)*10)/10;
+  const X=v=>x0+(v-lo)/(hi-lo)*(x1-x0),Y=v=>y1-(v-lo)/(hi-lo)*(y1-y0);
+  let s='';for(let e=Math.ceil(lo);e<=hi;e++){s+=`<line class="grid" x1="${X(e).toFixed(1)}" y1="${y0}" x2="${X(e).toFixed(1)}" y2="${y1}"/><text x="${X(e).toFixed(1)}" y="${y1+16}" text-anchor="middle">10<tspan baseline-shift="super" font-size="9">${e}</tspan></text>`;s+=`<line class="grid" x1="${x0}" y1="${Y(e).toFixed(1)}" x2="${x1}" y2="${Y(e).toFixed(1)}"/><text x="${x0-8}" y="${(Y(e)+4).toFixed(1)}" text-anchor="end">10<tspan baseline-shift="super" font-size="9">${e}</tspan></text>`;}
+  s+=`<line x1="${x0}" y1="${Y(lo).toFixed(1)}" x2="${x1}" y2="${Y(hi).toFixed(1)}" stroke="var(--mut)" stroke-dasharray="5 4"/><text x="${(x0+x1)/2}" y="${y1+34}" text-anchor="middle">Human median genes/cell (log)</text><text x="14" y="${(y0+y1)/2}" text-anchor="middle" transform="rotate(-90 14 ${(y0+y1)/2})">Mouse median genes/cell (log)</text>`;
+  J.forEach((j,i)=>{const x=X(Math.log10(j.h.median_genes)),y=Y(Math.log10(j.m.median_genes)),c=PAL[i%10];
+    s+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="7" fill="${c}" opacity="0.85"><title>${esc(j.name)}: human ${fi(j.h.median_genes)} genes, mouse ${fi(j.m.median_genes)} genes</title></circle>`;});
+  const placed=[];[...J].sort((a,b)=>a.m.median_genes-b.m.median_genes).forEach((j,k)=>{const x=X(Math.log10(j.h.median_genes)),y=Y(Math.log10(j.m.median_genes)),nm=esc(j.name);
+    let lx2=x+10,ly2=y+4;for(let it=0;it<30;it++){const hit=placed.find(q=>Math.abs(q.y-ly2)<14&&lx2<q.x+q.w&&lx2+nm.length*7>q.x);if(!hit)break;ly2=hit.y+14;}
+    placed.push({x:lx2,y:ly2,w:nm.length*7});s+=`<text x="${lx2.toFixed(1)}" y="${ly2.toFixed(1)}" style="fill:var(--fg);font-weight:600;paint-order:stroke;stroke:var(--bg);stroke-width:3px">${nm}</text>`;});
+  const r=pearson(lx,ly);return {svg:s,H:y1+52,W:x1+24,r};}
+function figGenRank(){const J=genJoin();
+  const ho=[...J].sort((a,b)=>b.h.median_genes-a.h.median_genes).map(j=>j.name),mo=[...J].sort((a,b)=>b.m.median_genes-a.m.median_genes).map(j=>j.name);
+  const hr={},mr={};ho.forEach((n,i)=>hr[n]=i+1);mo.forEach((n,i)=>mr[n]=i+1);
+  const n=J.length,xL=200,xR=440,y0=30,y1=250;let s='';
+  s+=`<text x="${xL}" y="14" text-anchor="middle" style="font-weight:700">Human rank (genes/cell)</text><text x="${xR}" y="14" text-anchor="middle" style="font-weight:700">Mouse rank (genes/cell)</text>`;
+  for(let r2=1;r2<=n;r2++){const y=(y0+(r2-1)/(n-1)*(y1-y0)).toFixed(1);s+=`<text x="${xL-16}" y="${+y+4}" text-anchor="end">#${r2}</text><line class="grid" x1="${xL}" y1="${y}" x2="${xL+10}" y2="${y}"/>`;}
+  J.forEach((j,i)=>{const yo=y0+(mr[j.name]-1)/(n-1)*(y1-y0),c=PAL[i%10];s+=`<text x="${xR+16}" y="${(yo+4).toFixed(1)}" style="fill:var(--fg)">#${mr[j.name]} ${esc(j.name)}</text>`;});
+  J.forEach((j,i)=>{const yp=y0+(hr[j.name]-1)/(n-1)*(y1-y0),yo=y0+(mr[j.name]-1)/(n-1)*(y1-y0),c=PAL[ho.indexOf(j.name)%10];
+    s+=`<line x1="${xL}" y1="${yp.toFixed(1)}" x2="${xR}" y2="${yo.toFixed(1)}" stroke="${c}" stroke-width="2.5" opacity="0.6"/><circle cx="${xL}" cy="${yp.toFixed(1)}" r="7" fill="${c}"><title>${esc(j.name)} human #${hr[j.name]}</title></circle><circle cx="${xR}" cy="${yo.toFixed(1)}" r="7" fill="${c}"><title>${esc(j.name)} mouse #${mr[j.name]}</title></circle>`;});
+  return {svg:s,H:y1+44};}
+function figGenStab(){const J=genJoin();const P=J.map(j=>({name:j.name,h:j.h.stability_mean,m:j.m.stability_mean}));
+  const lo=0.5,hi=1.0,x0=150,x1=600,y0=20,rh=56,H=y0+P.length*rh+34;let s='';
+  for(let v=lo;v<=hi+1e-9;v+=0.1){const x=x0+(v-lo)/(hi-lo)*(x1-x0);s+=`<line class="grid" x1="${x.toFixed(1)}" y1="${y0}" x2="${x.toFixed(1)}" y2="${H-30}"/><text x="${x.toFixed(1)}" y="${H-12}" text-anchor="middle">${v.toFixed(1)}</text>`;}
+  [...P].sort((a,b)=>((b.h+b.m)/2)-((a.h+a.m)/2)).forEach((p,i)=>{const y=y0+i*rh+22,c=PAL[genJoin().findIndex(j=>j.name===p.name)%10];
+    const xh=x0+(p.h-lo)/(hi-lo)*(x1-x0),xm=x0+(p.m-lo)/(hi-lo)*(x1-x0);
+    s+=`<text x="${x0-8}" y="${y+4}" text-anchor="end" style="fill:var(--fg)">${esc(p.name)}</text><line x1="${Math.min(xh,xm).toFixed(1)}" y1="${y}" x2="${Math.max(xh,xm).toFixed(1)}" y2="${y}" stroke="${c}" stroke-width="3" opacity="0.5"/><circle cx="${xh.toFixed(1)}" cy="${y}" r="6" fill="${c}"><title>${esc(p.name)} human stability ${p.h.toFixed(2)}</title></circle><rect x="${(xm-5).toFixed(1)}" y="${y-5}" width="10" height="10" fill="none" stroke="${c}" stroke-width="2"><title>${esc(p.name)} mouse stability ${p.m.toFixed(2)}</title></rect><text x="${(Math.max(xh,xm)+10).toFixed(1)}" y="${y+4}">${p.h.toFixed(2)} / ${p.m.toFixed(2)}</text>`;});
+  return {svg:s,H};}
+async function paintGeneralizability(){const box=msg=>{const e=document.getElementById('gmsg');if(e)e.innerHTML=msg;};
+  if(demo){box('<div class="warn">Demo mode: generalizability requires human + mouse results.</div>');return;}
+  try{await ensureBoth();}catch(e){box('<div class="warn">Could not load both datasets.</div>');return;}
+  const J=genJoin();box(`<span class="mut">${J.length} joint protocols · human n=${DH.cells_per_protocol.toLocaleString()} · mouse n=${DM.cells_per_protocol.toLocaleString()}.</span>`);
+  const g=figGenScatter();document.getElementById('g1').innerHTML=chartShell('fg-scatter','Human vs mouse: median genes','','<b>Fig. R18.</b> Per-protocol median genes cell<sup>−1</sup>, human PBMC versus mouse colon (log–log; n = joint protocols). Dashed line, identity. Pearson r on log<sub>10</sub> values = '+g.r.toFixed(2)+'. Full-depth medians; non-UMI read counts shift both axes jointly.','');
+  const es=document.getElementById('fg-scatter');es.setAttribute('viewBox',`0 0 ${g.W} ${g.H}`);es.innerHTML=g.svg;
+  const rk=figGenRank();document.getElementById('g2').innerHTML=chartShell('fg-rank','Human vs mouse rank','','<b>Fig. R19.</b> Per-species rank by median genes cell<sup>−1</sup> (human, left; mouse, right). Parallel trajectories indicate order preservation across tissues; crossings indicate tissue-conditioned rank instability.','');
+  const er=document.getElementById('fg-rank');er.setAttribute('viewBox','0 0 640 '+rk.H);er.innerHTML=rk.svg;
+  const st=figGenStab();document.getElementById('g3').innerHTML=chartShell('fg-stab','Stability: human vs mouse','','<b>Fig. R20.</b> Mean subsample ARI per protocol in human (disc) versus mouse (square), joined; axis 0.5–1.0. Bar length indexes cross-tissue stability of the precision estimate.','');
+  const et=document.getElementById('fg-stab');et.setAttribute('viewBox',`0 0 640 ${st.H}`);et.innerHTML=st.svg;
+  const gu=figGenUmis();document.getElementById('g4').innerHTML=chartShell('fg-umis','Human vs mouse: median counts','','<b>Fig. R27.</b> Per-protocol median counts, human versus mouse (log–log; n = '+J.length+' joint protocols). Dashed, identity. Pearson r on log<sub>10</sub> = '+gu.r.toFixed(2)+'. Non-UMI read counts shift both axes jointly.','');
+  const e4=document.getElementById('fg-umis');e4.setAttribute('viewBox',`0 0 ${gu.W} ${gu.H}`);e4.innerHTML=gu.svg;
+  const gaps=J.map(j=>({label:j.name,val:j.m.stability_mean-j.h.stability_mean,title:j.name+': gap '+(j.m.stability_mean-j.h.stability_mean>=0?'+':'')+(j.m.stability_mean-j.h.stability_mean).toFixed(3)})).sort((a,b)=>b.val-a.val);
+  const gg=gDivBars(gaps,{});document.getElementById('g5').innerHTML=chartShell('fg-gap','Cross-tissue stability gap','','<b>Fig. R28.</b> Stability gap (mouse − human mean ARI), ordered. Positive, more stable in mouse. Units, ARI.','');
+  const e5=document.getElementById('fg-gap');e5.setAttribute('viewBox',`0 0 640 ${gg.H}`);e5.innerHTML=gg.svg;
+  const kk0=Math.min(...J.map(j=>j.h.n_clusters+j.m.n_clusters)),kk1=Math.max(...J.map(j=>j.h.n_clusters+j.m.n_clusters));
+  const ap2=gScat(J.map((j,i)=>({x:j.h.ari!=null?j.h.ari:NaN,y:j.m.ari!=null?j.m.ari:NaN,label:j.name,hollow:j.name==='10X_V3',size:4+8*((j.h.n_clusters+j.m.n_clusters)-kk0)/Math.max(1,kk1-kk0),color:PAL[i%10],title:j.name+': human ARI '+(j.h.ari!=null?j.h.ari.toFixed(3):'–')+', mouse ARI '+(j.m.ari!=null?j.m.ari.toFixed(3):'–')+(j.name==='10X_V3'?' (single-species design; not comparable)':'')})).filter(p=>isFinite(p.x)&&isFinite(p.y)),{xlab:'Human ARI (vs labels)',ylab:'Mouse ARI (vs labels)'});
+  document.getElementById('g6').innerHTML=chartShell('fg-ari','Human vs mouse ARI','','<b>Fig. R29.</b> ARI against reference labels, human (x) versus mouse (y). Marker area encodes mean k. Labels are species-level in both tracks. 10X_V3 hollow (◇): single-species GSE141469 design; excluded from species-share interpretation.','');
+  const e6=document.getElementById('fg-ari');e6.setAttribute('viewBox',`0 0 ${ap2.W} ${ap2.H}`);e6.innerHTML=ap2.svg;
+  const cr=figCompRank();document.getElementById('g7').innerHTML=chartShell('fg-comp','Human vs mouse composite rank','','<b>Fig. R30.</b> Five-metric composite rank recomputed per species (human, left; mouse, right). Parallel trajectories indicate preserved overall standing across tissues. 10X_V3 dashed/hollow (◇): single-species design; rank comparable on yield metrics only.','');
+  const e7=document.getElementById('fg-comp');e7.setAttribute('viewBox','0 0 640 '+cr.H);e7.innerHTML=cr.svg;}
+
+function cv(a){const m=a.reduce((x,y)=>x+y,0)/Math.max(1,a.length);const v=a.reduce((x,y)=>x+(y-m)*(y-m),0)/Math.max(1,a.length);return Math.sqrt(v)/Math.max(1e-9,m);}
+function figResidual(){const P=D.protocols,lx=P.map(p=>Math.log10(Math.max(1,p.median_umis))),ly=P.map(p=>Math.log10(Math.max(1,p.median_genes)));
+  const mx=lx.reduce((a,v)=>a+v,0)/lx.length,my=ly.reduce((x,y)=>x+y,0)/ly.length;let n=0,d=0;lx.forEach((x,i)=>{n+=(x-mx)*(ly[i]-my);d+=(x-mx)*(x-mx);});
+  const s=n/Math.max(1e-9,d),b=my-s*mx;
+  const R=P.map((p,i)=>({p,r:ly[i]-(s*lx[i]+b)})).sort((a,c)=>c.r-a.r);
+  const m=Math.max(...R.map(q=>Math.abs(q.r)))*1.15,x0=310,x1=600,y0=20,rh=44,H=y0+R.length*rh+34;let o='';
+  o+=`<line class="grid" x1="${x0}" y1="${y0}" x2="${x0}" y2="${H-30}"/><text x="${x0}" y="${H-12}" text-anchor="middle">expected</text>`;
+  R.forEach((q,i)=>{const y=y0+i*rh+22,w=(x1-x0)*Math.abs(q.r)/m,c=q.r>=0?'#0e6b54':'#c25e3a';
+    o+=`<text x="${x0-8}" y="${y+4}" text-anchor="end" style="fill:var(--fg)">${esc(q.p.protocol)}</text>`;
+    o+=q.r>=0?`<rect x="${x0}" y="${y-8}" width="${w.toFixed(1)}" height="16" rx="4" fill="${c}"><title>${esc(q.p.protocol)}: ${q.r>=0?'+':''}${q.r.toFixed(3)} log10 genes vs depth trend</title></rect>`:`<rect x="${(x0-w).toFixed(1)}" y="${y-8}" width="${w.toFixed(1)}" height="16" rx="4" fill="${c}"><title>${esc(q.p.protocol)}: ${q.r.toFixed(3)} log10 genes vs depth trend</title></rect>`;
+    o+=`<text x="${(q.r>=0?x0+w+6:x0-w-6).toFixed(1)}" y="${y+4}" text-anchor="${q.r>=0?'start':'end'}">${q.r>=0?'+':''}${q.r.toFixed(2)}</text>`;});
+  return {svg:o,H,s,b};}
+function figHeterog(){const P=D.protocols.map(p=>{const g=(p.cellstat&&p.cellstat.genes)||[],u=(p.cellstat&&p.cellstat.umis)||[];
+    return {p,cg:g.length>10?cv(g):NaN,cu:u.length>10?cv(u):NaN};}).filter(q=>isFinite(q.cg)&&isFinite(q.cu));
+  P.sort((a,b)=>((b.cg+b.cu)/2)-((a.cg+a.cu)/2));
+  const m=Math.max(...P.flatMap(q=>[q.cg,q.cu]))*1.15,x0=150,x1=600,y0=20,rh=56,H=y0+P.length*rh+34;let o='';
+  for(let g=0;g<=4;g++){const v=m*g/4,x=(x0+(x1-x0)*v/m).toFixed(1);o+=`<line class="grid" x1="${x}" y1="${y0}" x2="${x}" y2="${H-30}"/><text x="${x}" y="${H-12}" text-anchor="middle">${v.toFixed(2)}</text>`;}
+  P.forEach((q,i)=>{const y=y0+i*rh+8,c=PAL[D.protocols.indexOf(q.p)%10];
+    const w1=(x1-x0)*q.cg/m,w2=(x1-x0)*q.cu/m;
+    o+=`<text x="${x0-8}" y="${y+26}" text-anchor="end" style="fill:var(--fg)">${esc(q.p.protocol)}</text><rect x="${x0}" y="${y}" width="${w1.toFixed(1)}" height="15" rx="4" fill="${c}"><title>${esc(q.p.protocol)} genes CV ${q.cg.toFixed(2)}</title></rect><rect x="${x0}" y="${y+19}" width="${w2.toFixed(1)}" height="15" rx="4" fill="${c}" opacity="0.45"><title>${esc(q.p.protocol)} UMIs CV ${q.cu.toFixed(2)}</title></rect><text x="${(x0+Math.max(w1,w2)+8).toFixed(1)}" y="${y+26}">${q.cg.toFixed(2)} / ${q.cu.toFixed(2)}</text>`;});
+  o+=`<g font-size="12"><rect x="${x0}" y="${H-28}" width="10" height="10" fill="var(--ac)"/><text x="${x0+14}" y="${H-18}">genes CV</text><rect x="${x0+110}" y="${H-28}" width="10" height="10" fill="var(--ac)" opacity="0.45"/><text x="${x0+124}" y="${H-18}">UMIs CV</text></g>`;
+  return {svg:o,H,n:P.length};}
+function figEven(){const P=D.protocols.map(p=>{const cl=(p.tsne&&p.tsne.cluster)||[];const cnt={};cl.forEach(z=>cnt[z]=(cnt[z]||0)+1);
+    const k=Object.keys(cnt).length,n=cl.length;let H=0;Object.values(cnt).forEach(v=>{const q=v/Math.max(1,n);H-=q*Math.log(q);});
+    return {p,k,eff:Math.exp(H),ev:k>1?H/Math.log(k):1};});
+  P.sort((a,b)=>a.ev-b.ev);
+  const m=Math.max(...P.map(q=>q.k))*1.1,x0=150,x1=600,y0=20,rh=56,H=y0+P.length*rh+34;let o='';
+  for(let k=0;k<=m;k+=5){const x=(x0+(x1-x0)*k/m).toFixed(1);o+=`<line class="grid" x1="${x}" y1="${y0}" x2="${x}" y2="${H-30}"/><text x="${x}" y="${H-12}" text-anchor="middle">${k}</text>`;}
+  P.forEach((q,i)=>{const y=y0+i*rh+8,c=PAL[D.protocols.indexOf(q.p)%10],w1=(x1-x0)*q.k/m,w2=(x1-x0)*q.eff/m;
+    o+=`<text x="${x0-8}" y="${y+26}" text-anchor="end" style="fill:var(--fg)">${esc(q.p.protocol)}</text><rect x="${x0}" y="${y}" width="${w1.toFixed(1)}" height="15" rx="4" fill="none" stroke="${c}" stroke-dasharray="4 3"><title>${esc(q.p.protocol)}: k=${q.k}</title></rect><rect x="${x0}" y="${y+19}" width="${w2.toFixed(1)}" height="15" rx="4" fill="${c}"><title>${esc(q.p.protocol)}: effective k=${q.eff.toFixed(1)}, evenness=${q.ev.toFixed(2)}</title></rect><text x="${(x0+w1+8).toFixed(1)}" y="${y+26}">k=${q.k} eff=${q.eff.toFixed(1)}</text>`;});
+  return {svg:o,H};}
+function figAccPrec(){const P=D.protocols.filter(p=>isFinite(p.ari)&&isFinite(p.stability_mean));
+  const xs=P.map(p=>p.ari),ys=P.map(p=>p.stability_mean);
+  const x0=64,x1=560,y0=16,y1=280,xm=Math.max(...xs)*1.15||1;
+  const X=v=>x0+v/xm*(x1-x0),Y=v=>y1-(v-0.5)/0.5*(y1-y0);
+  let o='';for(let v=0;v<=xm;v+=Math.max(0.05,xm/5)){const x=X(v);o+=`<line class="grid" x1="${x.toFixed(1)}" y1="${y0}" x2="${x}" y2="${y1}"/><text x="${x}" y="${y1+16}" text-anchor="middle">${v.toFixed(2)}</text>`;}
+  for(let v=0.5;v<=1.01;v+=0.1){o+=`<line class="grid" x1="${x0}" y1="${Y(v).toFixed(1)}" x2="${x1}" y2="${Y(v).toFixed(1)}"/><text x="${x0-8}" y="${(Y(v)+4).toFixed(1)}" text-anchor="end">${v.toFixed(1)}</text>`;}
+  o+=`<text x="${(x0+x1)/2}" y="${y1+34}" text-anchor="middle">ARI vs reference labels (accuracy)</text><text x="14" y="${(y0+y1)/2}" text-anchor="middle" transform="rotate(-90 14 ${(y0+y1)/2})">Stability (precision)</text>`;
+  const k0=Math.min(...P.map(p=>p.n_clusters)),k1=Math.max(...P.map(p=>p.n_clusters));
+  P.forEach((p,i)=>{const x=X(p.ari),y=Y(Math.min(1,Math.max(0.5,p.stability_mean))),r=4+8*(p.n_clusters-k0)/Math.max(1,k1-k0),c=PAL[D.protocols.indexOf(p)%10];
+    o+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}" fill="${c}" opacity="0.8"><title>${esc(p.protocol)}: ARI ${p.ari.toFixed(3)}, stability ${p.stability_mean.toFixed(2)}, k=${p.n_clusters}</title></circle>`;});
+  return {svg:o,H:y1+52,W:x1+24};}
+function figSpecies(){const CATS=['Human','Mouse','Doublet','Dog'],COL={Human:'#0e6b54',Mouse:'#378add',Doublet:'#c25e3a',Dog:'#993556'};
+  const P=D.protocols.map(p=>{const c=p.composition||{},t=Object.values(c).reduce((a,v)=>a+v,0)||1;const s={};CATS.forEach(k=>s[k]=(c[k]||0)/t);
+    s.other=Math.max(0,1-CATS.reduce((a,k)=>a+s[k],0));return {p,s};});
+  P.sort((a,b)=>(b.s.Human)-(a.s.Human));
+  const x0=150,x1=600,y0=20,rh=44,H=y0+P.length*rh+34;let o='';
+  for(let v=0;v<=100;v+=25){const x=(x0+(x1-x0)*v/100).toFixed(1);o+=`<line class="grid" x1="${x}" y1="${y0}" x2="${x}" y2="${H-30}"/><text x="${x}" y="${H-12}" text-anchor="middle">${v}%</text>`;}
+  P.forEach((q,i)=>{const y=y0+i*rh+8;let x=x0;const w={};CATS.forEach(k=>w[k]=(x1-x0)*q.s[k]);
+    const single=q.p.protocol==='10X_V3';
+    o+=`<text x="${x0-8}" y="${y+13}" text-anchor="end" style="fill:var(--fg)">${esc(q.p.protocol)}${single?' ◇':''}</text>`;
+    CATS.forEach(k=>{if(w[k]>0.5)o+=`<rect x="${x.toFixed(1)}" y="${y}" width="${w[k].toFixed(1)}" height="18" fill="${COL[k]}"${single?' stroke="#1c1c1a" stroke-width="1.5" stroke-dasharray="5 3" opacity="0.55"':''}><title>${esc(q.p.protocol)} ${k} ${(q.s[k]*100).toFixed(1)}%${single?' (single-species design; not comparable)':''}</title></rect>`;x+=w[k];});});
+  o+=CATS.map(k=>`<span style="display:none">${k}</span>`).join('');
+  return {svg:o,H,legend:'<span class="pill">Human</span> <span class="pill">Mouse</span> <span class="pill">Doublet</span> <span class="pill">Dog</span>'};}
+function figMarkers2(){const P=D.protocols.map(p=>{const mk=p.markers;if(!mk)return null;
+    let s=0,n=0;Object.entries(mk.top||{}).forEach(([c,idxs])=>{const cl=mk.clusters[c];if(!cl)return;
+      idxs.forEach(ii=>{s+=(cl.means[ii]||0)*(cl.fracs[ii]||0);n++;});});
+    return {p,u:(mk.genes||[]).length,k:Object.keys(mk.clusters||{}).length,a:n?s/n:0};}).filter(Boolean);
+  const xs=P.map(q=>q.u),ys=P.map(q=>q.a);
+  const x0=64,x1=560,y0=16,y1=280,xm=Math.max(...xs)*1.1,ym=Math.max(...ys)*1.15;
+  const X=v=>x0+v/xm*(x1-x0),Y=v=>y1-v/ym*(y1-y0);
+  let o='';for(let g=0;g<=4;g++){const xv=xm*g/4,yv=ym*g/4;
+    o+=`<line class="grid" x1="${X(xv).toFixed(1)}" y1="${y0}" x2="${X(xv).toFixed(1)}" y2="${y1}"/><text x="${X(xv).toFixed(1)}" y="${y1+16}" text-anchor="middle">${Math.round(xv)}</text>`;
+    o+=`<line class="grid" x1="${x0}" y1="${Y(yv).toFixed(1)}" x2="${x1}" y2="${Y(yv).toFixed(1)}"/><text x="${x0-8}" y="${(Y(yv)+4).toFixed(1)}" text-anchor="end">${yv.toFixed(1)}</text>`;}
+  o+=`<text x="${(x0+x1)/2}" y="${y1+34}" text-anchor="middle">Union markers</text><text x="14" y="${(y0+y1)/2}" text-anchor="middle" transform="rotate(-90 14 ${(y0+y1)/2})">Mean top-marker strength</text>`;
+  const k0=Math.min(...P.map(q=>q.k)),k1=Math.max(...P.map(q=>q.k));
+  P.forEach((q,i)=>{const x=X(q.u),y=Y(q.a),r=4+8*(q.k-k0)/Math.max(1,k1-k0),c=PAL[D.protocols.indexOf(q.p)%10];
+    o+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}" fill="${c}" opacity="0.8"><title>${esc(q.p.protocol)}: ${q.u} markers, strength ${q.a.toFixed(2)}, k=${q.k}</title></circle><text x="${(x+10).toFixed(1)}" y="${(y+4).toFixed(1)}" style="fill:var(--fg)">${esc(q.p.protocol)}</text>`;});
+  return {svg:o,H:y1+52,W:x1+24};}
+function gSeqBars(rows,o){o=o||{};const m=(o.max||Math.max(...rows.map(r=>r.val)))*1.15||1;
+  const x0=190,x1=600,y0=20,rh=o.rh||44,H=y0+rows.length*rh+34;let s='';const nt=o.ticks||5;
+  for(let g=0;g<=nt;g++){const v=m*g/nt,x=(x0+(x1-x0)*v/m).toFixed(1);
+    s+=`<line class="grid" x1="${x}" y1="${y0}" x2="${x}" y2="${H-30}"/><text x="${x}" y="${H-12}" text-anchor="middle">${o.fmt?o.fmt(v):v.toFixed(2)}</text>`;}
+  rows.forEach((r)=>{const y=y0+rows.indexOf(r)*(o.rh||44)+12,w=(x1-x0)*r.val/m;
+    s+=`<text x="${x0-8}" y="${y+13}" text-anchor="end" style="fill:var(--fg)">${esc(r.label)}</text><rect x="${x0}" y="${y}" width="${Math.max(1.5,w).toFixed(1)}" height="18" rx="4" fill="${r.color||'#0e6b54'}"><title>${esc(r.title||(r.label+': '+r.val.toFixed(3)))}</title></rect><text x="${(x0+w+8).toFixed(1)}" y="${y+13}">${o.vfmt?o.vfmt(r.val):r.val.toFixed(2)}</text>`;});
+  return {svg:s,H};}
+function gDivBars(rows,o){o=o||{};const m=Math.max(...rows.map(r=>Math.abs(r.val)))*1.15||1e-9;
+  const xL=200,xc=400,xR=600,y0=20,rh=o.rh||44,H=y0+rows.length*rh+34;let s='';
+  s+=`<line class="grid" x1="${xc}" y1="${y0}" x2="${xc}" y2="${H-30}"/><text x="${xc}" y="${H-12}" text-anchor="middle">0</text>`;
+  s+=`<text x="${xL}" y="${H-12}" text-anchor="middle">−${m.toFixed(2)}</text><text x="${xR}" y="${H-12}" text-anchor="middle">+${m.toFixed(2)}</text>`;
+  rows.forEach((r)=>{const y=y0+rows.indexOf(r)*(o.rh||44)+12,w=(xR-xc)*Math.abs(r.val)/m,c=r.val>=0?(o.pos||'#0e6b54'):(o.neg||'#c25e3a');
+    s+=`<text x="${xL-8}" y="${y+13}" text-anchor="end" style="fill:var(--fg)">${esc(r.label)}</text>`;
+    s+=r.val>=0?`<rect x="${xc}" y="${y}" width="${w.toFixed(1)}" height="18" rx="4" fill="${c}"><title>${esc(r.title||'')}</title></rect>`:`<rect x="${(xc-w).toFixed(1)}" y="${y}" width="${w.toFixed(1)}" height="18" rx="4" fill="${c}"><title>${esc(r.title||'')}</title></rect>`;
+    s+=`<text x="${(r.val>=0?xc+w+6:xc-w-6).toFixed(1)}" y="${y+13}" text-anchor="${r.val>=0?'start':'end'}">${o.vfmt?o.vfmt(r.val):(r.val>=0?'+':'')+r.val.toFixed(3)}</text>`;});
+  return {svg:s,H};}
+function gScat(pts,o){o=o||{};const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y);
+  let xa=o.x0!=null?o.x0:Math.min(...xs),xb=o.x1!=null?o.x1:Math.max(...xs);
+  let ya=o.y0!=null?o.y0:Math.min(...ys),yb=o.y1!=null?o.y1:Math.max(...ys);
+  if(xb-xa<1e-9){xa-=1;xb+=1;} if(yb-ya<1e-9){ya-=1;yb+=1;}
+  const L=64,R=560,T=16,B=280,X=v=>L+(v-xa)/(xb-xa)*(R-L),Y=v=>B-(v-ya)/(yb-ya)*(B-T);
+  let s='';const nt=4;
+  for(let g=0;g<=nt;g++){const xv=xa+(xb-xa)*g/nt,yv=ya+(yb-ya)*g/nt;
+    s+=`<line class="grid" x1="${X(xv).toFixed(1)}" y1="${T}" x2="${X(xv).toFixed(1)}" y2="${B}"/><text x="${X(xv).toFixed(1)}" y="${B+16}" text-anchor="middle">${o.xfmt?o.xfmt(xv):xv.toFixed(2)}</text>`;
+    s+=`<line class="grid" x1="${L}" y1="${Y(yv).toFixed(1)}" x2="${L}" y2="${Y(yv).toFixed(1)}"/><text x="${L-8}" y="${(Y(yv)+4).toFixed(1)}" text-anchor="end">${o.yfmt?o.yfmt(yv):yv.toFixed(2)}</text>`;}
+  s+=`<text x="${(L+R)/2}" y="${B+34}" text-anchor="middle">${esc(o.xlab||'x')}</text><text x="14" y="${(T+B)/2}" text-anchor="middle" transform="rotate(-90 14 ${(T+B)/2})">${esc(o.ylab||'y')}</text>`;
+  pts.forEach((p,i)=>{const cc=p.color||PAL[i%10];s+=`<circle cx="${X(p.x).toFixed(1)}" cy="${Y(p.y).toFixed(1)}" r="${(p.size||6).toFixed(1)}" fill="${p.hollow?'none':cc}"${p.hollow?` stroke="${cc}" stroke-width="2.5"`:''} opacity="0.8"><title>${esc(p.title||p.label)}</title></circle><text x="${(X(p.x)+9).toFixed(1)}" y="${(Y(p.y)+4).toFixed(1)}" style="fill:var(--fg)">${esc(p.label)}${p.hollow?' ◇':''}</text>`;});
+  return {svg:s,H:B+52,W:R+24};}
+function figGenUmis(){const J=genJoin(),x0=64,x1=560,y0=16,y1=280;
+  const lx=J.map(j=>Math.log10(Math.max(1,j.h.median_umis))),ly=J.map(j=>Math.log10(Math.max(1,j.m.median_umis)));
+  const lo=Math.floor(Math.min(...lx,...ly)*10)/10,hi=Math.ceil(Math.max(...lx,...ly)*10)/10;
+  const X=v=>x0+(v-lo)/(hi-lo)*(x1-x0),Y=v=>y1-(v-lo)/(hi-lo)*(y1-y0);
+  let s='';for(let e=Math.ceil(lo);e<=hi;e++){s+=`<line class="grid" x1="${X(e).toFixed(1)}" y1="${y0}" x2="${X(e).toFixed(1)}" y2="${y1}"/><text x="${X(e).toFixed(1)}" y="${y1+16}" text-anchor="middle">10<tspan baseline-shift="super" font-size="9">${e}</tspan></text>`;s+=`<line class="grid" x1="${x0}" y1="${Y(e).toFixed(1)}" x2="${x1}" y2="${Y(e).toFixed(1)}"/><text x="${x0-8}" y="${(Y(e)+4).toFixed(1)}" text-anchor="end">10<tspan baseline-shift="super" font-size="9">${e}</tspan></text>`;}
+  s+=`<line x1="${x0}" y1="${Y(lo).toFixed(1)}" x2="${x1}" y2="${Y(hi).toFixed(1)}" stroke="var(--mut)" stroke-dasharray="5 4"/><text x="${(x0+x1)/2}" y="${y1+34}" text-anchor="middle">Human median counts (log)</text><text x="14" y="${(y0+y1)/2}" text-anchor="middle" transform="rotate(-90 14 ${(y0+y1)/2})">Mouse median counts (log)</text>`;
+  J.forEach((j,i)=>{const x=X(Math.log10(Math.max(1,j.h.median_umis))),y=Y(Math.log10(Math.max(1,j.m.median_umis))),c=PAL[i%10];
+    s+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="7" fill="${c}" opacity="0.85"><title>${esc(j.name)}: human ${fi(j.h.median_umis)}, mouse ${fi(j.m.median_umis)}</title></circle><text x="${(x+10).toFixed(1)}" y="${(y+4).toFixed(1)}" style="fill:var(--fg)">${esc(j.name)}</text>`;});
+  return {svg:s,H:y1+52,W:x1+24,r:pearson(lx,ly)};}
+function genComp(list){const cols=[{k:'median_genes'},{k:'median_umis'},{k:'__ret',get:p=>p.cells_pass_qc/((p.qc_dist&&p.qc_dist.input_cells)||p.cells_pass_qc)},{k:'n_clusters'},{k:'stability_mean'}];
+  const norms=cols.map(c=>{const vs=list.map(p=>c.get?c.get(p):p[c.k]);const mn=Math.min(...vs),mx=Math.max(...vs);
+    return list.map(p=>{const v=c.get?c.get(p):p[c.k];return mx>mn?(v-mn)/(mx-mn):1;});});
+  const sc=list.map((p,i)=>norms.reduce((a,n)=>a+n[i],0)/norms.length);
+  const ord=list.map((p,i)=>({n:p.protocol,sc:sc[i]})).sort((a,b)=>b.sc-a.sc).map(r=>r.n);
+  const rank={};ord.forEach((n,i)=>rank[n]=i+1);return {order:ord,rank};}
+function figCompRank(){const J=genJoin(),ch=genComp(DH.protocols),cm=genComp(DM.protocols);
+  const names=J.map(j=>j.name),n=names.length,xL=200,xR=440,y0=30,y1=250;let s='';
+  s+=`<text x="${xL}" y="14" text-anchor="middle" style="font-weight:700">Human composite rank</text><text x="${xR}" y="14" text-anchor="middle" style="font-weight:700">Mouse composite rank</text>`;
+  for(let r2=1;r2<=n;r2++){const y=(y0+(r2-1)/(n-1)*(y1-y0)).toFixed(1);s+=`<text x="${xL-16}" y="${+y+4}" text-anchor="end">#${r2}</text><line class="grid" x1="${xL}" y1="${y}" x2="${xL+10}" y2="${y}"/>`;}
+  names.forEach((nm,i)=>{const yo=y0+(cm.rank[nm]-1)/(n-1)*(y1-y0),c=PAL[i%10];s+=`<text x="${xR+16}" y="${(yo+4).toFixed(1)}" style="fill:var(--fg)">#${cm.rank[nm]} ${esc(nm)}${nm==='10X_V3'?' ◇':''}</text>`;});
+  names.forEach((nm,i)=>{const yp=y0+(ch.rank[nm]-1)/(n-1)*(y1-y0),yo=y0+(cm.rank[nm]-1)/(n-1)*(y1-y0),c=PAL[i%10],sg=nm==='10X_V3';
+    s+=`<line x1="${xL}" y1="${yp.toFixed(1)}" x2="${xR}" y2="${yo.toFixed(1)}" stroke="${c}" stroke-width="2.5"${sg?' stroke-dasharray="6 4"':''} opacity="0.6"/><circle cx="${xL}" cy="${yp.toFixed(1)}" r="7" fill="${sg?'none':c}"${sg?` stroke="${c}" stroke-width="2.5"`:''}><title>${esc(nm)} human #${ch.rank[nm]}${sg?' (single-species design)':''}</title></circle><circle cx="${xR}" cy="${yo.toFixed(1)}" r="7" fill="${sg?'none':c}"${sg?` stroke="${c}" stroke-width="2.5"`:''}><title>${esc(nm)} mouse #${cm.rank[nm]}${sg?' (single-species design)':''}</title></circle>`;});
+  return {svg:s,H:y1+44};}
+function figSkew(){const P=D.protocols.map(p=>{const g=(p.cellstat&&p.cellstat.genes)||[],u=(p.cellstat&&p.cellstat.umis)||[];
+    const mg=g.reduce((a,v)=>a+v,0)/Math.max(1,g.length),mu=u.reduce((a,v)=>a+v,0)/Math.max(1,u.length);
+    const sg=[...g].sort((a,b)=>a-b),su=[...u].sort((a,b)=>a-b);
+    const dg=g.length?sg[Math.floor(sg.length/2)]||1:NaN,du=u.length?su[Math.floor(su.length/2)]||1:NaN;
+    return {p,sg:g.length>10?mg/Math.max(1,dg):NaN,su:u.length>10?mu/Math.max(1,du):NaN};}).filter(q=>isFinite(q.sg)&&isFinite(q.su));
+  P.sort((a,b)=>((b.sg+b.su)/2)-((a.sg+a.su)/2));
+  const m=Math.max(...P.flatMap(q=>[q.sg,q.su]))*1.1,x0=150,x1=600,y0=20,rh=56,H=y0+P.length*rh+34;let o='';
+  for(let g=0;g<=4;g++){const v=1+(m-1)*g/4,x=(x0+(x1-x0)*(v-1)/(m-1)).toFixed(1);o+=`<line class="grid" x1="${x}" y1="${y0}" x2="${x}" y2="${H-30}"/><text x="${x}" y="${H-12}" text-anchor="middle">${v.toFixed(2)}</text>`;}
+  o+=`<line class="grid" x1="${x0}" y1="${y0}" x2="${x0}" y2="${H-30}"/><text x="${x0}" y="${H-12}" text-anchor="middle">1.0</text>`;
+  P.forEach((q)=>{const y=y0+P.indexOf(q)*rh+8,c=PAL[D.protocols.indexOf(q.p)%10];
+    const w1=(x1-x0)*(q.sg-1)/Math.max(1e-9,m-1),w2=(x1-x0)*(q.su-1)/Math.max(1e-9,m-1);
+    o+=`<text x="${x0-8}" y="${y+26}" text-anchor="end" style="fill:var(--fg)">${esc(q.p.protocol)}</text><rect x="${x0}" y="${y}" width="${w1.toFixed(1)}" height="15" rx="4" fill="${c}"><title>${esc(q.p.protocol)} genes mean/median ${q.sg.toFixed(2)}</title></rect><rect x="${x0}" y="${y+19}" width="${w2.toFixed(1)}" height="15" rx="4" fill="${c}" opacity="0.45"><title>${esc(q.p.protocol)} counts mean/median ${q.su.toFixed(2)}</title></rect><text x="${(x0+Math.max(w1,w2)+8).toFixed(1)}" y="${y+26}">${q.sg.toFixed(2)} / ${q.su.toFixed(2)}</text>`;});
+  return {svg:o,H,n:P.length};}
+function figJacc(){let ord;try{ord=simOrder().filter(n=>D.protocols.some(p=>p.protocol===n));}catch(e){ord=D.protocols.map(p=>p.protocol);}
+  const S={};D.protocols.forEach(p=>S[p.protocol]=new Set((p.markers&&p.markers.genes)||[]));
+  const n=ord.length,cell=36,x0=190,y0=132,W=x0+n*cell+24,H=y0+n*cell+40;let s='';
+  const J=(a,b)=>{const A=S[a],B=S[b];if(!A||!B||(!A.size&&!B.size))return NaN;
+    let I=0;A.forEach(v=>{if(B.has(v))I++;});return I/Math.max(1,A.size+B.size-I);};
+  ord.forEach((b,j)=>{const x=x0+j*cell+cell/2;s+=`<text x="${x}" y="${y0-10}" text-anchor="start" transform="rotate(-90 ${x} ${y0-10})">${esc(b)}</text>`;});
+  ord.forEach((a,i)=>{const y=y0+i*cell+cell/2;s+=`<text x="${x0-8}" y="${y+4}" text-anchor="end" style="fill:var(--fg)">${esc(a)}</text>`;
+    ord.forEach((b,j)=>{const v=J(a,b),x=x0+j*cell;
+      s+=`<rect x="${x+1}" y="${y-cell/2+1}" width="${cell-2}" height="${cell-2}" rx="4" fill="#0e6b54" opacity="${(0.08+0.92*(a===b?1:v)).toFixed(2)}"><title>${esc(a)} × ${esc(b)}: Jaccard ${(a===b?1:v).toFixed(3)}</title></rect>`;});});
+  return {svg:s,H,W};}
+function paintSignatures(){
+  const r=figResidual();document.getElementById('u1').innerHTML=chartShell('fu-res','Depth-adjusted complexity','','<b>Fig. R21.</b> Residual log<sub>10</sub> genes about the ordinary-least-squares trend of log<sub>10</sub> genes on log<sub>10</sub> counts (slope '+r.s.toFixed(2)+', n = '+D.protocols.length+' protocols). Positive values exceed the depth-predicted expectation; units, log<sub>10</sub> genes.','');
+  const e1=document.getElementById('fu-res');e1.setAttribute('viewBox',`0 0 640 ${r.H}`);e1.innerHTML=r.svg;
+  const h=figHeterog();document.getElementById('u2').innerHTML=chartShell('fu-het','Cell heterogeneity','','<b>Fig. R22.</b> Coefficient of variation (SD/mean) of genes (solid) and counts (pale) across cells from per-cell <i>cellstat</i> arrays (n='+h.n+' protocols with cell-level data). Ordered by mean CV. High CV indicates heterogeneous capture or mixed quality, not superior resolution.','');
+  const e2=document.getElementById('fu-het');e2.setAttribute('viewBox',`0 0 640 ${h.H}`);e2.innerHTML=h.svg;
+  const v=figEven();document.getElementById('u3').innerHTML=chartShell('fu-ev','Cluster evenness','','<b>Fig. R23.</b> Nominal Louvain k (dashed) versus effective k = exp(Shannon entropy) (solid) from t-SNE-subset cluster sizes. Ordered by evenness H/log k. A large deficit indicates dominance by few clusters.','');
+  const e3=document.getElementById('fu-ev');e3.setAttribute('viewBox',`0 0 640 ${v.H}`);e3.innerHTML=v.svg;
+  const ap=figAccPrec();document.getElementById('u4').innerHTML=chartShell('fu-acc','Accuracy vs precision','','<b>Fig. R24.</b> ARI against reference labels (accuracy; x) versus mean subsample ARI (precision; y, 0.5–1.0). Marker area encodes k. The high-precision/low-accuracy quadrant is expected when unsupervised partitions recover structure orthogonal to the available labels.','');
+  const e4=document.getElementById('fu-acc');e4.setAttribute('viewBox',`0 0 ${ap.W} ${ap.H}`);e4.innerHTML=ap.svg;
+  const sp=figSpecies();document.getElementById('u5').innerHTML=chartShell('fu-sp','Species capture','','<b>Fig. R25.</b> Species composition per protocol from label frequencies (Human / Mouse / Doublet / Dog; 100% stacked bars, ordered by Human share). '+sp.legend+' Deviations from the designed mixture index capture and annotation bias, not protocol superiority. 10X_V3 dashed (◇): single-species GSE141469 design; excluded from species-share interpretation.','');
+  const e5=document.getElementById('fu-sp');e5.setAttribute('viewBox',`0 0 640 ${sp.H}`);e5.innerHTML=sp.svg;
+  const mk=figMarkers2();document.getElementById('u6').innerHTML=chartShell('fu-mk','Marker definition','','<b>Fig. R26.</b> Union top-marker count (x) versus mean top-marker strength (mean × fraction, log1p CP10K; y). Marker area encodes k. Quantity and strength are reported jointly; neither alone validates cell-type identity.','');
+  const e6=document.getElementById('fu-mk');e6.setAttribute('viewBox',`0 0 ${mk.W} ${mk.H}`);e6.innerHTML=mk.svg;
+  const effR=[...D.protocols].map(p=>({label:p.protocol,val:p.median_genes/Math.max(1,p.median_umis)*1000,color:PAL[D.protocols.indexOf(p)%10],title:p.protocol+': '+(p.median_genes/Math.max(1,p.median_umis)*1000).toFixed(0)+' genes/1k counts'})).sort((a,b)=>b.val-a.val);
+  const eEff=gSeqBars(effR,{fmt:v=>Math.round(v).toString(),vfmt:v=>Math.round(v).toString()});document.getElementById('u7').innerHTML=chartShell('fu-eff','Count efficiency','','<b>Fig. R31.</b> Median genes per 1,000 counts (median genes/median counts × 10<sup>3</sup>), ordered. Non-UMI chemistries report reads; cross-chemistry comparison conflates estimands.','');
+  const ee7=document.getElementById('fu-eff');ee7.setAttribute('viewBox',`0 0 640 ${eEff.H}`);ee7.innerHTML=eEff.svg;
+  const sk=figSkew();document.getElementById('u8').innerHTML=chartShell('fu-skew','Capture skew','','<b>Fig. R32.</b> Mean/median ratio of genes (solid) and counts (pale) across cells (<i>cellstat</i>, n='+sk.n+' protocols). Ordered by mean ratio. Values &gt;1 indicate right-skewed capture.','');
+  const ee8=document.getElementById('fu-skew');ee8.setAttribute('viewBox',`0 0 640 ${sk.H}`);ee8.innerHTML=sk.svg;
+  if(D.similarity&&D.similarity.cumulative){const rar=Object.entries(D.similarity.cumulative).map(([nm,arr])=>({label:nm,val:arr[99]-arr[49],color:PAL[D.protocols.findIndex(p=>p.protocol===nm)]<0?0:D.protocols.findIndex(p=>p.protocol===nm)%10,title:nm+': +'+(arr[99]-arr[49]).toLocaleString()+' genes (50→100 cells)'})).sort((a,b)=>b.val-a.val);
+    const eRar=gSeqBars(rar,{fmt:v=>Math.round(v).toLocaleString(),vfmt:v=>Math.round(v).toLocaleString()});document.getElementById('u9').innerHTML=chartShell('fu-rar','Rarefaction increment','','<b>Fig. R33.</b> Union genes gained from 50 to 100 sampled cells (mean of 3 shuffles), ordered. Rate estimand: steeper late discovery indicates unsaturation.','');
+    const ee9=document.getElementById('fu-rar');ee9.setAttribute('viewBox',`0 0 640 ${eRar.H}`);ee9.innerHTML=eRar.svg;}
+  else document.getElementById('u9').innerHTML='<div class="empty">Fig. R33 needs similarity data.</div>';
+  const kss=gScat(D.protocols.map((p,i)=>({x:p.n_clusters,y:p.stability_mean,label:p.protocol,color:PAL[i%10],size:7,title:p.protocol+': k='+p.n_clusters+', stability='+p.stability_mean.toFixed(2)})),{xlab:'Louvain k',ylab:'Stability (mean ARI)',y0:0.5,y1:1.0,xfmt:v=>Math.round(v).toString()});
+  document.getElementById('u10').innerHTML=chartShell('fu-kstab','Resolution vs precision','','<b>Fig. R34.</b> Partition count k (x) versus subsample stability (y, 0.5–1.0; n = '+D.protocols.length+' protocols). Tests whether finer partitioning costs resampling precision.','');
+  const ee10=document.getElementById('fu-kstab');ee10.setAttribute('viewBox',`0 0 ${kss.W} ${kss.H}`);ee10.innerHTML=kss.svg;
+  const silA=D.protocols.filter(p=>isFinite(p.silhouette)&&isFinite(p.ari));
+  if(silA.length){const sA=gScat(silA.map((p)=>({x:p.silhouette,y:p.ari,label:p.protocol,color:PAL[D.protocols.indexOf(p)%10],size:7,title:p.protocol+': silhouette='+p.silhouette.toFixed(3)+', ARI='+p.ari.toFixed(3)})),{xlab:'Silhouette (separation)',ylab:'ARI (label agreement)'});
+    document.getElementById('u11').innerHTML=chartShell('fu-silari','Separation vs agreement','','<b>Fig. R35.</b> Mean silhouette width (x, cohesion vs separation) versus ARI (y, label agreement); n = '+silA.length+' protocols. Jointly reads geometric separation and label concordance.','');
+    const ee11=document.getElementById('fu-silari');ee11.setAttribute('viewBox',`0 0 ${sA.W} ${sA.H}`);ee11.innerHTML=sA.svg;}
+  else document.getElementById('u11').innerHTML='<div class="empty">Fig. R35 needs silhouette and ARI.</div>';
+  const nmA=D.protocols.filter(p=>isFinite(p.nmi)&&isFinite(p.ari));
+  if(nmA.length){const nA=gScat(nmA.map((p)=>({x:p.nmi,y:p.ari,label:p.protocol,color:PAL[D.protocols.indexOf(p)%10],size:7,title:p.protocol+': NMI='+p.nmi.toFixed(3)+', ARI='+p.ari.toFixed(3)})),{xlab:'NMI',ylab:'ARI',x0:0,x1:1});
+    document.getElementById('u12').innerHTML=chartShell('fu-nmiari','Agreement-measure concordance','','<b>Fig. R36.</b> NMI (x) versus ARI (y) against reference labels (n = '+nmA.length+'). Concordance check: divergence flags sensitivity to cluster-number effects.','');
+    const ee12=document.getElementById('fu-nmiari');ee12.setAttribute('viewBox',`0 0 ${nA.W} ${nA.H}`);ee12.innerHTML=nA.svg;}
+  else document.getElementById('u12').innerHTML='<div class="empty">Fig. R36 needs NMI and ARI.</div>';
+  const sdR=[...D.protocols].map(p=>({label:p.protocol,val:p.stability_sd||0,color:PAL[D.protocols.indexOf(p)%10],title:p.protocol+': SD='+(p.stability_sd||0).toFixed(3)})).sort((a,b)=>b.val-a.val);
+  const eSd=gSeqBars(sdR,{});document.getElementById('u13').innerHTML=chartShell('fu-sds','Stability uncertainty','','<b>Fig. R37.</b> SD of subsample ARI over 5 repeats (precision of the precision estimate), ordered. High values mark run-to-run variability.','');
+  const ee13=document.getElementById('fu-sds');ee13.setAttribute('viewBox',`0 0 640 ${eSd.H}`);ee13.innerHTML=eSd.svg;
+  const domR=D.protocols.map(p=>{const cl=(p.tsne&&p.tsne.cluster)||[],cnt={};cl.forEach(z=>cnt[z]=(cnt[z]||0)+1);
+    const mx=Math.max(0,...Object.values(cnt));return {label:p.protocol,val:cl.length?mx/cl.length:0,color:PAL[D.protocols.indexOf(p)%10],title:p.protocol+': largest cluster '+Math.round((cl.length?mx/cl.length:0)*100)+'%'};}).sort((a,b)=>b.val-a.val);
+  const eDom=gSeqBars(domR,{fmt:v=>Math.round(v*100)+'%',vfmt:v=>Math.round(v*100)+'%'});document.getElementById('u14').innerHTML=chartShell('fu-dom2','Cluster dominance','','<b>Fig. R38.</b> Largest-cluster share of t-SNE-subset cells, ordered. High values indicate concentrated partitions.','');
+  const ee14=document.getElementById('fu-dom2');ee14.setAttribute('viewBox',`0 0 640 ${eDom.H}`);ee14.innerHTML=eDom.svg;
+  const pcR=D.protocols.filter(p=>p.pca&&p.pca.var).map(p=>({label:p.protocol,val:p.pca.var.reduce((a,v)=>a+v,0)*100,color:PAL[D.protocols.indexOf(p)%10],title:p.protocol+': '+(p.pca.var.reduce((a,v)=>a+v,0)*100).toFixed(1)+'% in retained PCs'})).sort((a,b)=>b.val-a.val);
+  if(pcR.length){const ePc=gSeqBars(pcR,{fmt:v=>v.toFixed(0)+'%',vfmt:v=>v.toFixed(1)+'%'});document.getElementById('u15').innerHTML=chartShell('fu-pctot','PCA variance retained','','<b>Fig. R39.</b> Total HVG variance captured by retained PCs (sum of variance ratios ×100, %; n = '+pcR.length+' protocols), ordered.','');
+    const ee15=document.getElementById('fu-pctot');ee15.setAttribute('viewBox',`0 0 640 ${ePc.H}`);ee15.innerHTML=ePc.svg;}
+  else document.getElementById('u15').innerHTML='<div class="empty">Fig. R39 needs PCA variance.</div>';
+  const mpcR=D.protocols.filter(p=>p.markers&&p.markers.genes).map(p=>{const k=Math.max(1,Object.keys(p.markers.clusters||{}).length);return {label:p.protocol,val:p.markers.genes.length/k,color:PAL[D.protocols.indexOf(p)%10],title:p.protocol+': '+(p.markers.genes.length/k).toFixed(1)+' markers/cluster'};}).sort((a,b)=>b.val-a.val);
+  const eMpc=gSeqBars(mpcR,{});document.getElementById('u16').innerHTML=chartShell('fu-mpc','Marker economy','','<b>Fig. R40.</b> Union top markers per Louvain cluster, ordered. High values mark marker-rich partitions.','');
+  const ee16=document.getElementById('fu-mpc');ee16.setAttribute('viewBox',`0 0 640 ${eMpc.H}`);ee16.innerHTML=eMpc.svg;
+  const mstR=D.protocols.filter(p=>p.markers&&p.markers.top).map(p=>{let s=0,n=0;Object.entries(p.markers.top).forEach(([c,idxs])=>{const cl=p.markers.clusters[c];if(!cl)return;idxs.forEach(ii=>{s+=(cl.means[ii]||0)*(cl.fracs[ii]||0);n++;});});
+    return {label:p.protocol,val:n?s/n:0,color:PAL[D.protocols.indexOf(p)%10],title:p.protocol+': strength='+(n?s/n:0).toFixed(2)};}).sort((a,b)=>b.val-a.val);
+  const eMst=gSeqBars(mstR,{});document.getElementById('u17').innerHTML=chartShell('fu-mstr','Marker strength','','<b>Fig. R41.</b> Mean top-marker strength (mean of mean×fraction over top-5 per cluster, log1p CP10K), ordered.','');
+  const ee17=document.getElementById('fu-mstr');ee17.setAttribute('viewBox',`0 0 640 ${eMst.H}`);ee17.innerHTML=eMst.svg;
+  const eJc=figJacc();document.getElementById('u18').innerHTML=chartShell('fu-jac','Marker-set overlap','','<b>Fig. R42.</b> Jaccard similarity of union top-marker sets (15×15; rows/cols by composite rank). High values mark shared marker vocabularies.','');
+  const ee18=document.getElementById('fu-jac');ee18.setAttribute('viewBox',`0 0 ${eJc.W} ${eJc.H}`);ee18.innerHTML=eJc.svg;
+  if(D.similarity&&D.similarity.correlation){const S=D.similarity,od=S.order.map((nm,i)=>{const vs=S.correlation[i].filter((_,j)=>j!==i);return {label:nm,val:vs.reduce((a,v)=>a+v,0)/Math.max(1,vs.length),color:PAL[D.protocols.findIndex(p=>p.protocol===nm)]<0?0:D.protocols.findIndex(p=>p.protocol===nm)%10,title:nm};}).sort((a,b)=>b.val-a.val);
+    const eHub=gSeqBars(od,{});document.getElementById('u19').innerHTML=chartShell('fu-hub','Expression hubness','','<b>Fig. R43.</b> Mean off-diagonal Pearson r per protocol (from R11; n = '+S.genes_common.toLocaleString()+' genes), ordered. High, expression hub; low, outlier.','');
+    const ee19=document.getElementById('fu-hub');ee19.setAttribute('viewBox',`0 0 640 ${eHub.H}`);ee19.innerHTML=eHub.svg;
+    const ep=Object.entries(D.similarity.cumulative).map(([nm,arr])=>({label:nm,val:arr[99],color:PAL[D.protocols.findIndex(p=>p.protocol===nm)]<0?0:D.protocols.findIndex(p=>p.protocol===nm)%10,title:nm+': '+arr[99].toLocaleString()+' genes'})).sort((a,b)=>b.val-a.val);
+    const eEp=gSeqBars(ep,{fmt:v=>Math.round(v).toLocaleString(),vfmt:v=>Math.round(v).toLocaleString()});document.getElementById('u20').innerHTML=chartShell('fu-end','Rarefaction endpoint','','<b>Fig. R44.</b> Union genes at 100 sampled cells (mean of 3 shuffles), ordered.','');
+    const ee20=document.getElementById('fu-end');ee20.setAttribute('viewBox',`0 0 640 ${eEp.H}`);ee20.innerHTML=eEp.svg;
+    const sat=Object.entries(D.similarity.cumulative).map(([nm,arr])=>({label:nm,val:arr[9]/Math.max(1,arr[99]),color:PAL[D.protocols.findIndex(p=>p.protocol===nm)]<0?0:D.protocols.findIndex(p=>p.protocol===nm)%10,title:nm+': '+(arr[9]/Math.max(1,arr[99])).toFixed(2)})).sort((a,b)=>b.val-a.val);
+    const eSat=gSeqBars(sat,{});document.getElementById('u21').innerHTML=chartShell('fu-sat','Early saturation','','<b>Fig. R45.</b> Early-saturation ratio genes@10/genes@100, ordered. High, front-loaded discovery.','');
+    const ee21=document.getElementById('fu-sat');ee21.setAttribute('viewBox',`0 0 640 ${eSat.H}`);ee21.innerHTML=eSat.svg;}
+  else {document.getElementById('u19').innerHTML='<div class="empty">Fig. R43 needs similarity data.</div>';document.getElementById('u20').innerHTML='<div class="empty">Fig. R44 needs similarity data.</div>';document.getElementById('u21').innerHTML='<div class="empty">Fig. R45 needs similarity data.</div>';}
+  const dblR=D.protocols.map(p=>{const c=p.composition||{},t=Object.values(c).reduce((a,v)=>a+v,0)||1;return {label:p.protocol,val:(c.Doublet||0)/t,color:PAL[D.protocols.indexOf(p)%10],title:p.protocol+': doublet '+(((c.Doublet||0)/t)*100).toFixed(1)+'%'};}).sort((a,b)=>b.val-a.val);
+  const eDbl=gSeqBars(dblR,{fmt:v=>(v*100).toFixed(1)+'%',vfmt:v=>(v*100).toFixed(1)+'%'});document.getElementById('u22').innerHTML=chartShell('fu-dbl','Doublet rate','','<b>Fig. R46.</b> Doublet share per protocol (composition), ordered. Indexes species-mixing capture.','');
+  const ee22=document.getElementById('fu-dbl');ee22.setAttribute('viewBox',`0 0 640 ${eDbl.H}`);ee22.innerHTML=eDbl.svg;
+  const dogR=D.protocols.map(p=>{const c=p.composition||{},t=Object.values(c).reduce((a,v)=>a+v,0)||1;return {label:p.protocol,val:(c.Dog||0)/t,color:PAL[D.protocols.indexOf(p)%10],title:p.protocol+': dog '+(((c.Dog||0)/t)*100).toFixed(1)+'%'};}).sort((a,b)=>b.val-a.val);
+  const eDog=gSeqBars(dogR,{fmt:v=>(v*100).toFixed(1)+'%',vfmt:v=>(v*100).toFixed(1)+'%'});document.getElementById('u23').innerHTML=chartShell('fu-dog','Spike-in recovery','','<b>Fig. R47.</b> Dog (MDCK 1% spike-in) share per protocol, ordered. Recovery of the designed minority.','');
+  const ee23=document.getElementById('fu-dog');ee23.setAttribute('viewBox',`0 0 640 ${eDog.H}`);ee23.innerHTML=eDog.svg;
+  if(silA.length){const silR=silA.map(p=>({label:p.protocol,val:p.silhouette,color:PAL[D.protocols.indexOf(p)%10],title:p.protocol+': '+p.silhouette.toFixed(3)})).sort((a,b)=>b.val-a.val);
+    const eSil=gSeqBars(silR,{});document.getElementById('u24').innerHTML=chartShell('fu-sil','Silhouette ranking','','<b>Fig. R48.</b> Mean silhouette width, ordered (n = '+silA.length+'/'+D.protocols.length+' protocols; needs ≥2 label classes).','');
+    const ee24=document.getElementById('fu-sil');ee24.setAttribute('viewBox',`0 0 640 ${eSil.H}`);ee24.innerHTML=eSil.svg;}
+  else document.getElementById('u24').innerHTML='<div class="empty">Fig. R48 needs silhouette.</div>';
+  const BB=benchScores(),BI=BB.rows.map(r=>r.p.protocol);
+  const riR=BB.rows.map(r=>{const rk=BB.cols.map((c,j)=>{const od=[...BB.rows].sort((a,b)=>b.sc[j]-a.sc[j]);return od.findIndex(q=>q.p.protocol===r.p.protocol)+1;});
+    return {label:r.p.protocol,val:Math.max(...rk)-Math.min(...rk),color:PAL[D.protocols.findIndex(p=>p.protocol===r.p.protocol)]<0?0:D.protocols.findIndex(p=>p.protocol===r.p.protocol)%10,title:r.p.protocol+': ranks '+rk.join('/')};}).sort((a,b)=>b.val-a.val);
+  const eRi=gSeqBars(riR,{fmt:v=>Math.round(v).toString(),vfmt:v=>Math.round(v).toString()});document.getElementById('u25').innerHTML=chartShell('fu-rinst','Rank instability','','<b>Fig. R49.</b> Max − min component rank across the 5 composite metrics per protocol, ordered. High, metric-dependent standing.','');
+  const ee25=document.getElementById('fu-rinst');ee25.setAttribute('viewBox',`0 0 640 ${eRi.H}`);ee25.innerHTML=eRi.svg;
+  const pc1R=D.protocols.filter(p=>p.pca&&p.pca.var&&p.pca.var.length).map(p=>({label:p.protocol,val:p.pca.var[0]*100,color:PAL[D.protocols.indexOf(p)%10],title:p.protocol+': PC1 '+(p.pca.var[0]*100).toFixed(1)+'% of HVG variance'})).sort((a,b)=>b.val-a.val);
+  if(pc1R.length){const ePc1=gSeqBars(pc1R,{fmt:v=>v.toFixed(0)+'%',vfmt:v=>v.toFixed(1)+'%'});document.getElementById('u26').innerHTML=chartShell('fu-pc1','PC1 dominance','','<b>Fig. R50.</b> PC1 variance share (% of HVG variance; n = '+pc1R.length+' protocols), ordered. High, concentrated (low-rank) structure.','');
+    const ee26=document.getElementById('fu-pc1');ee26.setAttribute('viewBox',`0 0 640 ${ePc1.H}`);ee26.innerHTML=ePc1.svg;}
+  else document.getElementById('u26').innerHTML='<div class="empty">Fig. R50 needs PCA variance.</div>';}
+
 function clusterDist(p){const counts={};p.tsne.cluster.forEach(c=>counts[c]=(counts[c]||0)+1);const ks=Object.keys(counts).map(Number).sort((a,b)=>a-b);const m=Math.max(...Object.values(counts));
   return `<div class="mut" style="margin:6px 0 2px">Cluster sizes in t-SNE subset (n=${p.tsne.x.length} cells; full-data k=${p.n_clusters})</div>`+ks.map(k=>`<div class="row" style="grid-template-columns:90px 1fr 48px"><span>cl ${k}</span><div class="bar"><i style="width:${(counts[k]/m*100).toFixed(1)}%;background:${PAL[k%10]}"></i></div><span>${counts[k]}</span></div>`).join('');}
 
@@ -323,40 +684,42 @@ const T={
  overview(){const P=[...D.protocols].sort((a,b)=>sortDir*((a[sortKey]??-1e9)-(b[sortKey]??-1e9)));
   const best=k=>[...D.protocols].sort((a,b)=>(b[k]??-1)-(a[k]??-1))[0];const nolab=D.protocols.every(p=>(p.label_coverage||0)===0);
   const cols=[['protocol','Protocol'],['cells_pass_qc','Cells (QC)'],['median_genes','Genes/cell'],['median_umis','UMIs/cell'],['median_mito_pct','Mito %'],['n_clusters','k'],['stability_mean','Stability']];
-  return `<div class="hero"><h2>Replication at a glance</h2><p>Library complexity on real GSE133549 counts runs <b>${[...D.protocols].sort((a,b)=>b.median_genes-a.median_genes).map(p=>esc(p.protocol)).join(' &gt; ')}</b> by median genes/cell — broadly the paper's Fig. 6 order, on full-depth data without the paper's 20K-read equalisation. Clustering is stable (subsample ARI ${Math.min(...D.protocols.map(p=>p.stability_mean)).toFixed(2)}–${Math.max(...D.protocols.map(p=>p.stability_mean)).toFixed(2)}) but unverified: GEO supplements carry no reference labels.</p></div>${nolab?`<div class="warn">No reference labels in GEO supplements (label coverage 0%) — ARI / NMI / silhouette are unavailable. Clustering is scored by subsample stability only. Mito % = 0 is an ENSEMBL-ID artefact (see Discrepancies).</div>`:''}`
-  +`<div class="kpis"><div class="card kpi"><span class="lbl">Protocols (real data)</span><b>${D.protocols.length} / ${PAPER_N}</b></div><div class="card kpi"><span class="lbl">Cells/protocol (equalised)</span><b>${fi(D.cells_per_protocol)}</b></div><div class="card kpi"><span class="lbl">Highest complexity</span><b>${esc(best('median_genes').protocol)}</b></div><div class="card kpi"><span class="lbl">Most stable</span><b>${esc(best('stability_mean').protocol)}</b></div></div>`
-  +`<div class="card note"><b>Key finding.</b> Library complexity follows the paper's Fig. 6 order: QUARTZseq2 &gt; CELseq2 &gt; Drop-seq — on full-depth counts without the paper's 20K-read equalisation (see Discrepancies).</div>`
-  +`<div class="card wrap"><table><tr>${cols.map(c=>`<th data-k="${c[0]}">${c[1]}${c[0]==sortKey?(sortDir<0?' ▼':' ▲'):''}</th>`).join('')}</tr>`+P.map(p=>`<tr>${cols.map(c=>`<td>${c[0]=='protocol'?esc(p.protocol):c[0]=='median_mito_pct'?p[c[0]].toFixed(1):c[0]=='stability_mean'?p[c[0]].toFixed(2):fi(p[c[0]])}</td>`).join('')}</tr>`).join('')+`</table></div><button class="btn" onclick="dlCsv()">Download CSV</button>${(D.errors||[]).length?`<div class="warn">Skipped: ${D.errors.map(e=>esc(e.protocol)+" ("+esc(e.error)+")").join("; ")}</div>`:""}<div class="card"><h3>Key findings (this subset)</h3><div id="findings"><span class="mut">computing…</span></div></div>
- <details><summary>Data dictionary — every field in results.json</summary><table>
- <tr><th>Field</th><th>Meaning</th></tr>
- <tr><td>cells_pass_qc</td><td>Cells with ≥ min_genes (200) detected genes and ≤ max_mito_pct (20%) mito reads. Mito is 0 for all protocols here (ENSEMBL IDs).</td></tr>
- <tr><td>median_genes / median_umis</td><td>Median detected genes / total counts per QC-pass cell, full-depth (paper equalises to 20K reads/cell).</td></tr>
- <tr><td>n_clusters</td><td>Louvain communities on the equalised subset (k=15, res=1.0, 30 PCs).</td></tr>
- <tr><td>stability_mean ± sd</td><td>Mean ± SD of ARI(full labels, re-clustered 80% subsample) over 5 repeats — precision proxy, not accuracy.</td></tr>
- <tr><td>label_coverage / ari / nmi / silhouette / composition</td><td>Reference-label metrics; absent (0 / skipped) until a metadata.csv with celltype labels is added.</td></tr>
- <tr><td>qc_dist</td><td>Pre-QC per-cell distributions from the raw matrices: input_cells, genes/UMIs percentiles [min,P10,P25,median,P75,P90,max], genes_total (≥1 / ≥3 cells), top-50/200 count shares. Powers Quality Figs. R6–R8.</td></tr>
- <tr><td>tsne {x, y, cluster, label}</td><td>t-SNE coordinates (≤1500 cells/protocol) with cluster ids; labels are "NA" without metadata.</td></tr>
- <tr><td>discrepancies</td><td>Curated paper-vs-replication comparisons shown on the Discrepancies tab.</td></tr></table></details>
- <p class="mut">Click a header to sort. Stability: ARI between full-data Louvain clusters and 80% subsamples (${D.config.stability_repeats} repeats, seed ${D.config.seed}). Generated ${esc(D.generated)}.</p>`;},
- quality(){const MXEFF=Math.max(...D.protocols.map(p=>p.median_genes/p.median_umis*1000));return `<div class="card note"><b>Reading guide.</b> Axes are log-scaled: a constant horizontal shift is a fold-change. Bubble area ∝ QC-pass cells. Paper Fig. 2 reports depth-equalised (20K reads) values <i>per cell type</i>; ours are full-depth medians over all cells — expect ours to be higher and depth-confounded.</div><div id="q1"></div><div id="q2"></div><div id="q3"></div><div id="q0"></div><div id="q01"></div><div id="q1"></div><div id="q2"></div><div id="q3"></div><div id="q4"></div><div id="q5"></div><div id="q6"></div>
-  <div class="card"><h3>Genes per 1,000 UMIs (sequencing efficiency)</h3>${[...D.protocols].sort((a,b)=>b.median_genes/b.median_umis-a.median_genes/a.median_umis).map(p=>{const v=p.median_genes/p.median_umis*1000;return `<div class="row"><span>${esc(p.protocol)}</span><div class="bar"><i style="width:${(v/MXEFF*100).toFixed(1)}%"></i></div><span>${v.toFixed(0)}</span></div>`;}).join('')}<p class="figcap"><b>Interpretation.</b> 10X_8x10K_25K yields most genes per 1K UMIs (762); Smart-seq2 fewest (39) — expected, its denominator is non-UMI reads. Quartz-seq2's low per-UMI yield at high absolute depth signals saturation, not inefficiency.</p></div>
+  return `<div class="hero"><h2>Overview</h2><p>Between-protocol comparison on GEO GSE133549 count matrices. Estimands: per-protocol median detected genes, median counts, QC retention, Louvain partition count (k), and subsample stability. Estimators computed on ${fi(D.cells_per_protocol)} equalised cells protocol<sup>−1</sup> (uniform subsample without replacement, seed ${D.config.seed}); QC and medians pre-equalisation at full depth (no 20K-read downsampling). Stability: mean adjusted Rand index (ARI) between full-data labels and 5 independent 80% re-embeddings/re-clusterings; range ${Math.min(...D.protocols.map(p=>p.stability_mean)).toFixed(2)}–${Math.max(...D.protocols.map(p=>p.stability_mean)).toFixed(2)}. Reference-label metrics require external metadata; mito inference is inoperative on ENSEMBL identifiers (reported 0%).</p></div>${nolab?`<div class="warn">Reference labels absent: ARI / NMI / silhouette versus ground truth are not estimable. Reported stability quantifies precision (self-agreement), not accuracy.</div>`:''}`
+  +`<div class="kpis"><div class="card kpi"><span class="lbl">Protocols</span><b>${D.protocols.length} / ${PAPER_N}</b></div><div class="card kpi"><span class="lbl">Cells/protocol</span><b>${fi(D.cells_per_protocol)}</b></div><div class="card kpi"><span class="lbl">Highest genes/cell</span><b>${esc(best('median_genes').protocol)}</b></div><div class="card kpi"><span class="lbl">Most stable</span><b>${esc(best('stability_mean').protocol)}</b></div></div>`
+  +`<div class="card wrap"><table><tr>${cols.map(c=>`<th data-k="${c[0]}">${c[1]}${c[0]==sortKey?(sortDir<0?' ▼':' ▲'):''}</th>`).join('')}</tr>`+P.map(p=>`<tr>${cols.map(c=>`<td>${c[0]=='protocol'?esc(p.protocol):c[0]=='median_mito_pct'?p[c[0]].toFixed(1):c[0]=='stability_mean'?p[c[0]].toFixed(2):fi(p[c[0]])}</td>`).join('')}</tr>`).join('')+`</table></div><button class="btn" onclick="dlCsv()">Download CSV</button>${(D.errors||[]).length?`<div class="warn">Skipped: ${D.errors.map(e=>esc(e.protocol)+" ("+esc(e.error)+")").join("; ")}</div>`:""}<div class="card"><h3>Summary</h3><div id="findings"><span class="mut">computing…</span></div></div>
+  <details><summary>Data dictionary</summary><table>
+  <tr><th>Field</th><th>Definition</th></tr>
+  <tr><td>cells_pass_qc</td><td>Cells with ≥200 genes, ≤20% mito reads.</td></tr>
+  <tr><td>median_genes / median_umis</td><td>Median genes / counts per QC-pass cell (full-depth).</td></tr>
+  <tr><td>n_clusters</td><td>Louvain communities (k=15, res=1.0, 30 PCs).</td></tr>
+  <tr><td>stability_mean ± sd</td><td>Mean ± SD ARI vs 80% subsamples (${D.config.stability_repeats} repeats).</td></tr>
+  <tr><td>qc_dist</td><td>Pre-QC distributions: percentiles, top-50/200 share.</td></tr>
+  <tr><td>tsne / pca / umap / cellstat</td><td>Embeddings and per-cell genes/UMIs (≤${D.config.tsne_cells} cells).</td></tr>
+  <tr><td>environment</td><td>Embedded software versions (Python + numpy/pandas/scipy/scikit-learn/networkx/PyYAML/umap-learn) recorded by <code>pipeline/run_analysis.py</code> at analysis time.</td></tr></table></details>
+  <p class="mut">Generated ${esc(D.generated)}.</p>`;},
+ quality(){const MXEFF=Math.max(...D.protocols.map(p=>p.median_genes/p.median_umis*1000));return `<div id="q0"></div><div id="q01"></div><div id="q1"></div><div id="q2"></div><div id="q3"></div><div id="q4"></div><div id="q5"></div><div id="q6"></div>
+  <div class="card"><h3>Genes per 1,000 UMIs</h3>${[...D.protocols].sort((a,b)=>b.median_genes/b.median_umis-a.median_genes/a.median_umis).map(p=>{const v=p.median_genes/p.median_umis*1000;return `<div class="row"><span>${esc(p.protocol)}</span><div class="bar"><i style="width:${(v/MXEFF*100).toFixed(1)}%"></i></div><span>${v.toFixed(0)}</span></div>`;}).join('')}<p class="figcap">Non-UMI protocols report reads, not UMIs.</p></div>
 `;},
  clustering(){const hasLab=D.protocols.some(p=>(p.label_coverage||0)>0);
-  return `<div id="c0"></div><div id="ce1"></div><div id="c1"></div><div id="ce2"></div><div class="card"><h3>Communities found (Louvain, k=${D.config.knn}, res=${D.config.resolution}, ${D.config.n_pcs} PCs)</h3>${[...D.protocols].sort((a,b)=>b.n_clusters-a.n_clusters).map(p=>`<div class="row"><span>${esc(p.protocol)}</span><div class="bar"><i style="width:${(p.n_clusters/Math.max(...D.protocols.map(q=>q.n_clusters))*100).toFixed(1)}%;background:${colOf(p)}"></i></div><span>${p.n_clusters}</span></div>`).join('')}<p class="figcap"><b>Fig. R4b.</b> Number of Louvain communities per protocol (equalised n=${D.cells_per_protocol}). Finer partitioning tracks library complexity (Spearman-positive here), not necessarily better cell-type accuracy.</p></div>`
-  +(hasLab?'':'<div class="empty"><b>ARI / NMI / silhouette:</b> not computed — GEO supplements carry no cell-type labels (label_coverage = 0). In the paper these are Fig. 4b (Seurat + matchSCore2, avg. agreement 80%). Our stability score below is a <i>precision proxy</i>, not an accuracy measure.</div>')
-  +`<div id="ce3"></div><div id="c2"></div><h2>Cluster-size distributions (t-SNE subset)</h2>`+D.protocols.map(p=>`<div class="card"><b>${esc(p.protocol)}</b>${clusterDist(p)}</div>`).join('');},
+  return `<div id="c0"></div><div id="ce1"></div><div id="c1"></div><div id="ce2"></div><div class="card"><h3>Louvain communities (k=${D.config.knn}, res=${D.config.resolution}, ${D.config.n_pcs} PCs)</h3>${[...D.protocols].sort((a,b)=>b.n_clusters-a.n_clusters).map(p=>`<div class="row"><span>${esc(p.protocol)}</span><div class="bar"><i style="width:${(p.n_clusters/Math.max(...D.protocols.map(q=>q.n_clusters))*100).toFixed(1)}%;background:${colOf(p)}"></i></div><span>${p.n_clusters}</span></div>`).join('')}<p class="figcap">Fig. R4b. Equalised n=${D.cells_per_protocol}.</p></div>`
+  +(hasLab?'':'<div class="empty">ARI / NMI / silhouette not computed — no reference labels.</div>')
+  +`<div id="ce3"></div><div id="c2"></div><h2>Cluster sizes</h2>`+D.protocols.map(p=>`<div class="card"><b>${esc(p.protocol)}</b>${clusterDist(p)}</div>`).join('');},
  markers(){const withM=D.protocols.filter(p=>p.markers&&p.markers.genes&&p.markers.genes.length);
-  if(!withM.length)return `<div class="empty"><b>No marker data in this results file.</b> Markers need a pipeline run that includes the marker block (<code>pipeline/run_analysis.py</code> → <code>pipeline/qc_distributions.py</code>), then reload.</div>`;
-  return `<div class="card note"><b>Reading guide.</b> Classic single-cell dot plot: one row per union top-marker gene (top 5 per Louvain cluster by (mean<sub>in</sub>−mean<sub>out</sub>)×fraction, on log1p CP10K HVGs), one column per cluster. Big dark dot = specific and widely expressed. Gene labels are symbols where mapped, else ENSEMBL IDs.</div><div style="display:flex;gap:8px;margin-bottom:10px"><select id="mp">${withM.map((p,i)=>`<option value="${i}">${esc(p.protocol)} (${Object.keys(p.markers.clusters).length} clusters)</option>`).join('')}</select></div><div id="mwrap"></div>`;},
- similarity(){if(!D.similarity||!D.similarity.correlation)return `<div class="empty"><b>No similarity data in this results file.</b> Run <code>python pipeline/similarity.py</code>, then reload.</div>`;
-  return `<div class="card note"><b>Reading guide.</b> Paper Fig. 3c,f: how alike protocols look in average expression, and how fast new genes appear as cells are added. Means use common genes only (n=${D.similarity.genes_common.toLocaleString()}), depth-normalised (CP10K, log1p); curves average 3 shuffles of ≤100 QC-pass cells.</div><div id="s1"></div><div id="s2"></div>`;},
+  if(!withM.length)return `<div class="empty">No marker data in this results file.</div>`;
+  return `<div style="display:flex;gap:8px;margin-bottom:10px"><select id="mp">${withM.map((p,i)=>`<option value="${i}">${esc(p.protocol)} (${Object.keys(p.markers.clusters).length} clusters)</option>`).join('')}</select></div><div id="mwrap"></div>`;},
+ similarity(){if(!D.similarity||!D.similarity.correlation)return `<div class="empty">No similarity data in this results file.</div>`;
+  return `<div id="s1"></div><div id="s2"></div>`;},
  benchmark(){const {cols,rows}=benchScores();
-  return `<div class="card note"><b>What this is.</b> A Fig. 6-style summary: each metric is min–max normalised across the ${D.protocols.length} processed protocols (dot size/opacity = score); the orange composite is the <b>arithmetic mean</b> across metrics (the paper used a harmonic mean; see note). Paper ranks shown for orientation. Mito % and label-based metrics are excluded (artefact / unavailable).</div><div id="b1"></div>
-  <div class="card wrap"><table><tr><th>Protocol</th>${cols.map(c=>`<th>${c.label}</th>`).join('')}<th>Composite</th><th>Paper Fig. 6</th></tr>${rows.map(r=>`<tr><td><b>${esc(r.p.protocol)}</b></td>${r.sc.map(v=>`<td>${v.toFixed(2)}</td>`).join('')}<td><b>${r.hm.toFixed(2)}</b></td><td>#${PAPER_RANK[r.p.protocol]||'?'} / ${PAPER_N}</td></tr>`).join('')}</table></div>
-  <p class="figcap"><b>Fig. R5.</b> Top tier matches the paper's top 4 (Quartz-seq2, Smart-seq2, CEL-seq2), but Smart-seq2 takes #1 here purely on non-UMI read depth — the paper's 20K-read equalisation puts Quartz-seq2 first. Do not compare absolute values with the paper: metric sets and normalisations differ (paper: 6 metrics incl. marker expression/mixability at 20K reads; here: 5 full-depth metrics).</p>`;},
- protocols(){const {rows}=benchScores();const crank={};rows.forEach((r,i)=>crank[r.p.protocol]=i+1);
+  return `<div id="b1"></div>
+  <div class="card wrap"><table><tr><th>Protocol</th>${cols.map(c=>`<th>${c.label}</th>`).join('')}<th>Composite</th><th>Paper Fig. 6</th></tr>${rows.map(r=>`<tr><td><b>${esc(r.p.protocol)}</b></td>${r.sc.map(v=>`<td>${v.toFixed(2)}</td>`).join('')}<td><b>${r.hm.toFixed(2)}</b></td><td>#${PAPER_RANK[r.p.protocol]||'?'} / ${PAPER_N}</td></tr>`).join('')}</table></div>`;},
+  generalizability(){return `<div id="g1"></div><div id="g2"></div><div id="g3"></div><div id="g4"></div><div id="g5"></div><div id="g6"></div><div id="g7"></div><div class="mut" id="gmsg"><span class="mut">Loading human + mouse…</span></div>`;},
+ signatures(){return `<div id="u1"></div><div id="u2"></div><div id="u3"></div><div id="u4"></div><div id="u5"></div><div id="u6"></div><div id="u7"></div><div id="u8"></div><div id="u9"></div><div id="u10"></div><div id="u11"></div><div id="u12"></div><div id="u13"></div><div id="u14"></div><div id="u15"></div><div id="u16"></div><div id="u17"></div><div id="u18"></div><div id="u19"></div><div id="u20"></div><div id="u21"></div><div id="u22"></div><div id="u23"></div><div id="u24"></div><div id="u25"></div><div id="u26"></div>`;},
+  paper(){const P=D.paper;
+   if(!P||!P.depths)return `<div class="empty"><b>No paper-figure data in this results file.</b> Run <code>python pipeline/paper_figures.py</code> (and again with the mouse results file), then reload.</div>`;
+   return `<div class="card note"><b>What this is.</b> Direct analogues of the paper's per-figure panels, computed on this replication's data. Reference labels here are <b>species-mix calls</b> (Human/Mouse/Doublet/Dog from the GEO supplements), not the paper's matchSCore2 cell types (PBMC/colon subpopulations) — so panels that the paper stratifies by cell type are stratified by species instead. Depths are thinned UMIs (binomial), approximating the paper's 20K-read zUMIs downsampling.</div><div id="p1"></div><div id="p2"></div><div id="p3"></div><div id="p4"></div><div id="p5"></div><div id="p6"></div>`;},
+  protocols(){const {rows}=benchScores();const crank={};rows.forEach((r,i)=>crank[r.p.protocol]=i+1);
   const bg=[...D.protocols].sort((a,b)=>b.median_genes-a.median_genes)[0],be=[...D.protocols].sort((a,b)=>b.median_genes/b.median_umis-a.median_genes/a.median_umis)[0],bs=[...D.protocols].sort((a,b)=>b.stability_mean-a.stability_mean)[0];
-  return `<div class="card note"><b>How to read.</b> One card per processed protocol, ordered by composite rank. Deltas (Δ) are vs the best protocol on that metric. Paper rank = overall Fig. 6 rank among 13 protocols.</div>`+rows.map(r=>{const p=r.p,inp=INPUT(p),ret=100*p.cells_pass_qc/inp,eff=p.median_genes/p.median_umis*1000;
+  return rows.map(r=>{const p=r.p,inp=INPUT(p),ret=100*p.cells_pass_qc/inp,eff=p.median_genes/p.median_umis*1000;
    const tier=p===bg?`Highest library complexity in this subset (${fi(p.median_genes)} genes/cell, ${fi(p.median_umis)} UMIs).`:`${(bg.median_genes/p.median_genes).toFixed(1)}&times; fewer genes/cell than ${esc(bg.protocol)} at full depth (depth-confounded: paper equalises to 20K reads).`;
    const stab=p.stability_mean>=0.9?`Very stable partitioning (ARI ${p.stability_mean.toFixed(2)}): clusters reproduce across subsamples.`:`Stable (ARI ${p.stability_mean.toFixed(2)} &plusmn; ${p.stability_sd.toFixed(2)}), lowest of the three but well above random.`;
    return `<div class="card"><h3><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${colOf(p)}"></span> ${esc(p.protocol)} <span class="pill">composite #${crank[p.protocol]} here</span> ${PAPER_RANK[p.protocol]?`<span class="pill">paper #${PAPER_RANK[p.protocol]}/${PAPER_N}</span>`:`<span class="pill">not in paper (V3)</span>`}${p===be?' <span class="pill">most genes/UMI</span>':''}</h3>
@@ -367,15 +730,24 @@ const T={
    <tr><td>Genes per 1K UMIs</td><td>${eff.toFixed(0)}</td><td>${p===be?'best':p.protocol+' saturates faster'}</td></tr>
    <tr><td>Louvain communities (k)</td><td>${p.n_clusters}</td><td>${p.n_clusters===Math.max(...D.protocols.map(q=>q.n_clusters))?'finest':'—'}</td></tr>
    <tr><td>Stability (mean &plusmn; SD)</td><td>${p.stability_mean.toFixed(3)} &plusmn; ${p.stability_sd.toFixed(3)}</td><td>${p===bs?'best':'−'+(bs.stability_mean-p.stability_mean).toFixed(3)}</td></tr>
-   <tr><td>Label coverage</td><td>${(100*(p.label_coverage||0)).toFixed(0)}%</td><td>no labels in GEO supplements</td></tr></table></div>
-   <p class="figcap"><b>Interpretation.</b> ${tier} ${stab} QC retention ${ret.toFixed(1)}% (min_genes ≥ 200; mito filter inert on ENSEMBL IDs).</p>${clusterDist(p)}</div>`;}).join('')+`<p class="mut">Downstream clustering used n=${D.cells_per_protocol} equalised cells/protocol, ${D.config.n_hvg} HVGs, ${D.config.n_pcs} PCs, k=${D.config.knn}, Louvain res=${D.config.resolution}, seed ${D.config.seed}.</p>`;},
+    <tr><td>Label coverage</td><td>${(100*(p.label_coverage||0)).toFixed(0)}%</td><td>—</td></tr></table></div>
+   ${clusterDist(p)}</div>`;}).join('')+`<p class="mut">n=${D.cells_per_protocol} cells/protocol · ${D.config.n_hvg} HVGs · ${D.config.n_pcs} PCs · k=${D.config.knn} · res=${D.config.resolution}.</p>`;},
  explorer(){const hasP=D.protocols.some(p=>p.pca),hasU=D.protocols.some(p=>p.umap),hasC=D.protocols.some(p=>p.cellstat);
   return `<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap"><select id="sp">${D.protocols.map((p,i)=>`<option value="${i}">${esc(p.protocol)} (k=${p.n_clusters})</option>`).join('')}</select><select id="sv"><option value="tsne">View: t-SNE</option><option value="pca">View: PCA</option><option value="umap">View: UMAP</option></select><select id="sc"><option value="cluster">Colour: Louvain cluster</option><option value="genes">Colour: genes/cell</option><option value="umis">Colour: UMIs/cell</option><option value="label">Colour: reference label</option></select></div><div class="card" style="position:relative"><div class="figbox"><canvas id="cv"></canvas></div><div class="tip" id="tip"></div><div class="lg" id="lg"></div></div><p class="mut" id="excap"></p>`;},
- glossary(){const G=[["UMI","Unique molecular identifier: random barcode ligated before amplification so PCR duplicates collapse to one molecule. Non-UMI protocols (Smart-seq2) count reads instead."],["Droplet vs plate-based","Droplet methods (Drop-seq, Chromium, inDrop, ddSEQ) encapsulate cells in oil droplets (high throughput, 3-prime biased); plate methods (Smart-seq2, CEL-seq2, Quartz-seq2, MARS-seq) sort cells into wells (fuller transcripts, lower throughput)."],["HVG","Highly variable genes: top-variance genes after normalisation (here 2,000) used for PCA; focuses signal on biology over noise."],["PCA / PC","Principal component analysis compresses 2,000 HVGs into 30 orthogonal axes (PCs) ordered by variance explained."],["kNN graph","k-nearest-neighbour graph (k=15) on PCs: each cell linked to its 15 closest neighbours; basis for Louvain clustering."],["Louvain / resolution","Community detection on the kNN graph; resolution (1.0) tunes granularity — higher values split more clusters."],["t-SNE / perplexity","t-distributed stochastic neighbour embedding for 2-D display only; perplexity (30 max) sets neighbourhood size. Plot distances are not quantitative."],["ARI","Adjusted Rand index: agreement between two clusterings, corrected for chance (1 = identical, about 0 = random). Our stability score."],["NMI","Normalised mutual information: shared information between clusterings in [0,1]; less sensitive to cluster number than ARI."],["Silhouette / ASW","Average silhouette width: cluster cohesion vs separation in [-1,1]. Paper Fig. 4b metric; needs reference labels."],["QC (min_genes, mito %)","Quality control keeps cells with 200+ detected genes and at most 20% mitochondrial reads (dying cells leak mito RNA). Mito filter is inert here (ENSEMBL IDs)."],["Doublet","Two cells captured as one event (e.g. human+mouse); the mixed-species design lets the paper exclude them."],["matchSCore2","Authors' marker-based projector assigning each cell a reference cell-type probability; p >= 0.5 kept, else 'unclassified'."],["HCA","Human Cell Atlas: consortium mapping all human cell types — the benchmark's motivating use case."],["GEO SuperSeries","GSE133549 groups 15 per-protocol SubSeries (GSE133535-48, GSE141469), each with count + metadata supplements."],["Downsampling","Equalising read depth (paper: 20K reads/cell via zUMIs) and cell numbers so protocols compare fairly."],["Dropout","Zero count for an expressed gene (technical non-detection); SCDE models it per cell as a function of expression level."],["Batch effect","Technical variation between runs/labs; kBET quantifies mixing failure when protocols are integrated."],["Library complexity","Number of distinct molecules/genes captured per cell — the main axis separating protocols (paper Fig. 2)."],["log1p / CP10K","Counts scaled to 10K per cell then log(1+x): variance-stabilises for PCA and clustering."],["Seed","Fixed random seed (0) makes subsampling, SVD, Louvain and t-SNE exactly reproducible."],["Marker gene","Gene preferentially expressed in one cluster; here the top 5 per Louvain community by (mean_in−mean_out)×fraction on log1p CP10K HVG values."],["Pearson r","Linear correlation of mean expression profiles in [−1,1]; 1 = identical ranking of gene levels."],["Cumulative curve","Union gene count as cells are added; steep early rise = high per-cell complexity."],["PCA scatter","Cells in PC1–PC2 space with per-component variance explained; global structure, unlike t-SNE/UMAP neighbourhoods."],["UMAP","Uniform manifold approximation: neighbourhood-preserving 2-D embedding; standard atlas overview (n_neighbors 15 here)."],["Feature plot","Embedding coloured by a per-cell quantity (genes/UMIs) instead of cluster id."],["Violin plot","Mirrored density of per-cell values (Gaussian KDE, Silverman rule) with IQR bar + median dot."],["Box plot","Quartiles with 1.5×IQR Tukey whiskers; here on log10 counts per cluster."],["Dot plot","Rows = genes, columns = clusters; dot size = fraction expressing, shade = mean expression. Compact marker heatmap."],["Composite score","Mean of normalised metrics ranking protocols (paper Fig. 6: harmonic mean of 6; here: arithmetic mean of 5 — see Benchmark note)."]];
- return `<div class="card note"><b>${G.length} terms.</b> Plain-language definitions for every technical term used on this dashboard.</div>`+G.map(g=>`<div class="card"><b>${g[0]}</b><br><span class="mut">${g[1]}</span></div>`).join('');},
+ glossary(){const G=[["UMI","Unique molecular identifier: random barcode ligated before amplification so PCR duplicates collapse to one molecule. Non-UMI protocols (Smart-seq2) count reads instead."],["Droplet vs plate-based","Droplet methods (Drop-seq, Chromium, inDrop, ddSEQ) encapsulate cells in oil droplets (high throughput, 3-prime biased); plate methods (Smart-seq2, CEL-seq2, Quartz-seq2, MARS-seq) sort cells into wells (fuller transcripts, lower throughput)."],["HVG","Highly variable genes: top-variance genes after normalisation (here 2,000) used for PCA; focuses signal on biology over noise."],["PCA / PC","Principal component analysis compresses 2,000 HVGs into 30 orthogonal axes (PCs) ordered by variance explained."],["kNN graph","k-nearest-neighbour graph (k=15) on PCs: each cell linked to its 15 closest neighbours; basis for Louvain clustering."],["Louvain / resolution","Community detection on the kNN graph; resolution (1.0) tunes granularity — higher values split more clusters."],["t-SNE / perplexity","t-distributed stochastic neighbour embedding for 2-D display only; perplexity (30 max) sets neighbourhood size. Plot distances are not quantitative."],["ARI","Adjusted Rand index: chance-corrected agreement between two partitions (1, identical; ≈0, random; <0, worse than chance). Used here both versus labels (accuracy) and versus subsample re-clusterings (stability/precision)."],["NMI","Normalised mutual information: I(U;V)/mean(H(U),H(V)) in [0,1]; less sensitive to cluster count than ARI."],["Silhouette / ASW","Mean silhouette width over cells: s = (b−a)/max(a,b) in [−1,1], with a = mean intra-cluster distance, b = min mean nearest-cluster distance (≈ paper ASW). Requires ≥2 label classes."],["QC (min_genes, mito %)","Quality control keeps cells with 200+ detected genes and at most 20% mitochondrial reads (dying cells leak mito RNA). Mito filter is inert here (ENSEMBL IDs)."],["Doublet","Two cells captured as one event (e.g. human+mouse); the mixed-species design lets the paper exclude them."],["matchSCore2","Authors' marker-based projector assigning each cell a reference cell-type probability; p >= 0.5 kept, else 'unclassified'."],["HCA","Human Cell Atlas: consortium mapping all human cell types — the benchmark's motivating use case."],["GEO SuperSeries","GSE133549 groups 15 per-protocol SubSeries (GSE133535-48, GSE141469), each with count + metadata supplements."],["Downsampling","Equalising read depth (paper: 20K reads/cell via zUMIs) and cell numbers so protocols compare fairly."],["Dropout","Zero count for an expressed gene (technical non-detection); SCDE models it per cell as a function of expression level."],["Batch effect","Technical variation between runs/labs; kBET quantifies mixing failure when protocols are integrated."],["Library complexity","Number of distinct molecules/genes captured per cell — the main axis separating protocols (paper Fig. 2)."],["log1p / CP10K","Counts scaled to 10K per cell then log(1+x): variance-stabilises for PCA and clustering."],["Seed","Fixed random seed (0) makes subsampling, SVD, Louvain and t-SNE exactly reproducible."],["Marker gene","Gene preferentially expressed in one cluster; here the top 5 per Louvain community by (mean_in−mean_out)×fraction on log1p CP10K HVG values."],["Pearson r","Linear correlation of mean expression profiles in [−1,1]; 1 = identical ranking of gene levels."],["Cumulative curve","Union gene count as cells are added; steep early rise = high per-cell complexity."],["PCA scatter","Cells in PC1–PC2 space with per-component variance explained; global structure, unlike t-SNE/UMAP neighbourhoods."],["UMAP","Uniform manifold approximation: neighbourhood-preserving 2-D embedding; standard atlas overview (n_neighbors 15 here)."],["Feature plot","Embedding coloured by a per-cell quantity (genes/UMIs) instead of cluster id."],["Violin plot","Mirrored density of per-cell values (Gaussian KDE, Silverman rule) with IQR bar + median dot."],["Box plot","Quartiles with 1.5×IQR Tukey whiskers; here on log10 counts per cluster."],["Dot plot","Rows = genes, columns = clusters; dot size = fraction expressing, shade = mean expression. Compact marker heatmap."],["Composite score","Mean of normalised metrics ranking protocols (paper Fig. 6: harmonic mean of 6; here: arithmetic mean of 5 — see Benchmark note)."]];
+  return `<div class="card"><b>Glossary</b> — ${G.length} terms.</div>`+G.map(g=>`<div class="card"><b>${g[0]}</b><br><span class="mut">${g[1]}</span></div>`).join('');},
  datasets(){const MAP={"CEL-Seq2":"CELseq2","Drop-seq":"Dropseq","MARS-seq":"MARSseq","Quartz-seq2":"QUARTZseq2","Smart-seq2":"SMARTseq2","inDrop":"inDrop","10X (2×5K cells, 250K reads)":"10X_2x5K_250K","10X (8×10K cells, 25K reads)":"10X_8x10K_25K","10X V3":"10X_V3","C1HT medium":"C1HT_medium","C1HT small":"C1HT_small","ICELL8":"ICELL8","gmSCRB-seq":"gmSCRBseq","Single nuclei (sNuc-seq)":"SingleNuclei","ddSEQ":"ddSEQ"};
-  return `<div class="card wrap"><table><tr><th>Protocol</th><th>SubSeries</th><th>Input cells</th><th>QC-pass</th><th>Retained</th><th>Status</th></tr>`+CAT.map(c=>{const key=MAP[c[1]];const p=key&&D.protocols.find(x=>x.protocol===key);
-   return `<tr><td>${c[1]}${key&&PAPER_RANK[key]?` <span class="pill">paper #${PAPER_RANK[key]}</span>`:''}</td><td><a href="https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=${c[0]}">${c[0]}</a></td><td>${p?fi(INPUT(p)):'–'}</td><td>${p?fi(p.cells_pass_qc):'–'}</td><td>${p?(100*p.cells_pass_qc/INPUT(p)).toFixed(1)+'%':'–'}</td><td>${p?'<b>processed</b>':'pending'}</td></tr>`;}).join('')+`</table></div><p class="mut">GSE133549 is a SuperSeries; count matrices live in the SubSeries. Human matrices processed so far (${D.protocols.length}/15). Species mix per paper design: PBMC 60% / colon 30% / HEK293T 6% / NIH3T3 3% / MDCK 1%.</p>`;},
+  const acc=`<div class="card wrap"><table><tr><th>Protocol</th><th>SubSeries</th><th>Input cells</th><th>QC-pass</th><th>Retained</th><th>Status</th></tr>`+CAT.map(c=>{const key=MAP[c[1]];const p=key&&D.protocols.find(x=>x.protocol===key);
+   return `<tr><td>${c[1]}${key&&PAPER_RANK[key]?` <span class="pill">paper #${PAPER_RANK[key]}</span>`:''}</td><td><a href="https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=${c[0]}">${c[0]}</a></td><td>${p?fi(INPUT(p)):'–'}</td><td>${p?fi(p.cells_pass_qc):'–'}</td><td>${p?(100*p.cells_pass_qc/INPUT(p)).toFixed(1)+'%':'–'}</td><td>${p?'<b>processed</b>':'pending'}</td></tr>`;}).join('')+`</table></div><p class="mut">Source: GEO GSE133549 SuperSeries; matrices in SubSeries. ${D.protocols.length}/15 processed.</p>`;
+  const hasSim=D.similarity&&D.similarity.correlation,hasQc=D.protocols.some(p=>p.qc_dist),hasLab=D.protocols.some(p=>isFinite(p.ari));
+  const dl=`<div class="card"><h3>Downloads — ${esc(SPECIES)} track</h3><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" onclick="dlJson()">JSON (complete record)</button><button class="btn" onclick="dlCsv()">Full metrics CSV</button><button class="btn" onclick="dlMarkers()">Markers CSV</button><button class="btn" onclick="dlComp()">Composition CSV</button>${hasSim?'<button class="btn" onclick="dlCorr()">Correlation CSV</button><button class="btn" onclick="dlCum()">Cumulative CSV</button>':''}${hasQc?'<button class="btn" onclick="dlQc()">QC distributions CSV</button>':''}</div><p class="figcap">CSVs are generated client-side from the loaded results; the JSON is the complete record (embeddings, cellstat, config, environment). Switch Human/Mouse for the other track.</p></div>`;
+  const R=D.protocols.map(metricsRow);
+  const full=`<h2>Full metrics (${R.length} protocols)</h2><div class="card">`+dataTable(['Protocol','Input','QC-pass','Ret%','Genes','UMIs','Genes/1k','k','Stab','±sd','ARI','NMI','Sil','LabCov','UnionMk'],R.map(r=>[`<b>${esc(r.protocol)}</b>`,fi(r.input_cells),fi(r.cells_pass_qc),isFinite(r.retention)?(100*r.retention).toFixed(1)+'%':'–',fi(r.median_genes),fi(r.median_umis),r.genes_per_1k.toFixed(0),r.n_clusters,r.stability_mean.toFixed(2),r.stability_sd.toFixed(2),isFinite(r.ari)?r.ari.toFixed(3):'–',isFinite(r.nmi)?r.nmi.toFixed(3):'–',isFinite(r.silhouette)?r.silhouette.toFixed(3):'–',(100*r.label_coverage).toFixed(0)+'%',r.union_markers]))+`</div>`;
+  const lab=hasLab?`<h2>Label agreement</h2><div class="card">`+dataTable(['Protocol','ARI','NMI','Silhouette','Coverage'],D.protocols.filter(p=>isFinite(p.ari)).map(p=>[`<b>${esc(p.protocol)}</b>`,p.ari.toFixed(3),isFinite(p.nmi)?p.nmi.toFixed(3):'–',isFinite(p.silhouette)?p.silhouette.toFixed(3):'–',(100*(p.label_coverage||0)).toFixed(0)+'%']))+`<p class="figcap">Against GEO species-mix labels (Human/Mouse/Doublet/Dog); low ARI is expected (R24).</p></div>`:'';
+  const comp=`<h2>Species composition</h2><div class="card">`+dataTable(['Protocol','Human%','Mouse%','Doublet%','Dog%'],D.protocols.map(p=>{const c=p.composition||{},t=Object.values(c).reduce((a,v)=>a+v,0)||1;return [`<b>${esc(p.protocol)}</b>`,(((c.Human||0)/t)*100).toFixed(1),(((c.Mouse||0)/t)*100).toFixed(1),(((c.Doublet||0)/t)*100).toFixed(1),(((c.Dog||0)/t)*100).toFixed(1)];}))+`<p class="figcap">Shares of labelled cells; 10X_V3 is single-species by design (see Discrepancies).</p></div>`;
+  const qc=hasQc?`<h2>QC distributions (pre-QC)</h2><div class="card">`+dataTable(['Protocol','Input','Genes≥1cell','Genes≥3cells','Genes P10/med/P90','UMIs P10/med/P90','Top50/200%'],D.protocols.filter(p=>p.qc_dist).map(p=>{const q=p.qc_dist;return [`<b>${esc(p.protocol)}</b>`,fi(q.input_cells),fi(q.genes_total_1cell),fi(q.genes_total_3cells),`${fi(q.genes_q[1])} / ${fi(q.genes_q[3])} / ${fi(q.genes_q[5])}`,`${fi(q.umis_q[1])} / ${fi(q.umis_q[3])} / ${fi(q.umis_q[5])}`,`${(100*q.top50_share).toFixed(1)} / ${(100*q.top200_share).toFixed(1)}`];}))+`</div>`:'';
+  const env=D.environment?`<h2>Software environment</h2><div class="card">`+dataTable(['Component','Version'],[['Python',esc(D.environment.python||'–')]].concat(Object.entries(D.environment.packages||{}).map(([k,v])=>[esc(k),esc(v)])).concat([['UMAP available',D.environment.umap_available?'yes':'no']]))+`<p class="figcap">Embedded at analysis time (<code>results.json: environment</code>); generated ${esc(D.generated||'unknown')}.</p></div>`:'';
+  return acc+dl+full+lab+comp+qc+env;},
  discrepancies(){const d=D.discrepancies||[];return d.length?d.map(x=>`<div class="card"><b>${esc(x.item)}</b><table><tr><th style="width:32%">Paper</th><th style="width:32%">Replication</th><th>Note</th></tr><tr><td style="white-space:normal">${esc(x.paper)}</td><td style="white-space:normal">${esc(x.replication)}</td><td style="white-space:normal">${esc(x.note)}</td></tr></table></div>`).join(''):'<div class="card mut">No comparisons recorded yet.</div>';}
 };
 let DRAW=null;
@@ -398,7 +770,7 @@ function draw(){const si=+$('#sp').value,p=D.protocols[si];let vw=$('#sv').value
   PX.forEach((pt,i)=>{g.fillStyle=PAL[u.indexOf(vv[i])%10];g.globalAlpha=.78;g.beginPath();g.arc(pt[0],pt[1],2.6*r,0,7);g.fill();});g.globalAlpha=1;
   const counts={};vv.forEach(z=>counts[z]=(counts[z]||0)+1);
   leg=u.map((n,i)=>`<span><i style="background:${PAL[i%10]}"></i>${esc(n)} (${counts[n]})</span>`).join('');
-  if(cap)cap.textContent=(vw==='pca'&&p.pca?`PCA embedding (PC1 ${(100*p.pca.var[0]).toFixed(1)}%, PC2 ${(100*p.pca.var[1]).toFixed(1)}% of HVG variance). `:'')+`${vw.toUpperCase()} on ≤${D.config.tsne_cells} cells per protocol${vw==='tsne'?` (perplexity ≤ 30, seed ${D.config.seed})`:vw==='umap'?' (n_neighbors 15 default, seed '+D.config.seed+')':''}. Hover a point for its ${k}. Reference labels are all "NA" (no labels in GEO supplements).`;}
+  if(cap)cap.textContent=(vw==='pca'&&p.pca?`PCA (PC1 ${(100*p.pca.var[0]).toFixed(1)}%, PC2 ${(100*p.pca.var[1]).toFixed(1)}%). `:'')+`${vw.toUpperCase()} · ${k} · n=${xs.length}.`;}
  $('#lg').innerHTML=leg;
  DRAW={PX,v:(k==='genes'||k==='umis')?PX.map((_,i)=>String(((p.cellstat||{})[k]||[])[i]||'')):((k==='label'?(src.label||src.cluster):src.cluster).map(String))};
  const tip=$('#tip');
@@ -407,63 +779,92 @@ function draw(){const si=+$('#sp').value,p=D.protocols[si];let vw=$('#sv').value
  c.onmouseleave=()=>tip.style.display='none';}
 function show(n){window.__tab=n;document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t==n));$('#view').innerHTML=T[n]();
  document.querySelectorAll('th[data-k]').forEach(h=>h.onclick=()=>{sortDir=sortKey==h.dataset.k?-sortDir:-1;sortKey=h.dataset.k;show('overview')});
- if(n=='quality'){
-  if(D.protocols.some(p=>p.qc_dist&&p.qc_dist.cell_sample)){const vg=figViolin('genes','Genes per cell (log scale)');$('#view #q0').innerHTML=chartShell('fq-vg','Per-cell genes: violin distributions (QC-pass cells)','','<b>Fig. R13a.</b> Gaussian-KDE violins (Silverman bandwidth, log scale) of detected genes over ≤1000 QC-pass cells/protocol; bar = IQR, white dot = median. Width = density.','KDE on log10 counts; violins sorted by median, as the R1 bars.');
+  if(n=='quality'){
+  if(D.protocols.some(p=>p.qc_dist&&p.qc_dist.cell_sample)){const vg=figViolin('genes','Genes per cell (log scale)');$('#view #q0').innerHTML=chartShell('fq-vg','Genes per cell','','<b>Fig. R13a.</b> Distribution of detected genes over QC-pass cells (≤1,000 cells protocol<sup>−1</sup>, Gaussian KDE on log<sub>10</sub> counts, Silverman bandwidth; vertical bar, interquartile range; point, median). Protocols ordered by median. Width encodes density, not sample size.','');
   document.getElementById('fq-vg').innerHTML=vg.svg;
-  const vu=figViolin('umis','UMIs per cell (log scale)');$('#view #q01').innerHTML=chartShell('fq-vu','Per-cell UMIs: violin distributions (QC-pass cells)','','<b>Fig. R13b.</b> Same convention for total counts. Bimodal violins (e.g. QUARTZseq2) expose the low-quality tail hidden by medians.','Non-UMI protocols (Smart-seq2, C1HT, ICELL8) report reads; compare shapes, not depths, across chemistries.');
+  const vu=figViolin('umis','UMIs per cell (log scale)');$('#view #q01').innerHTML=chartShell('fq-vu','UMIs per cell','','<b>Fig. R13b.</b> As R13a for total counts. Non-UMI chemistries (Smart-seq2, C1HT, ICELL8) report reads; cross-chemistry depth comparisons conflate molecular estimands.','');
   document.getElementById('fq-vu').innerHTML=vu.svg;}
-  $('#view #q1').innerHTML=chartShell('fq-genes','Median genes detected per cell (log scale)','','<b>Fig. R1a.</b> Full-depth medians (all cells). Paper Fig. 2d reports 20K-read-equalised values per cell type (HEK293T, monocytes, B cells); direction matches, magnitudes do not transfer.','Min–max bar length is logarithmic. n = QC-pass cells per protocol (see Datasets). Config: min_genes=200, seed 0.');
+  $('#view #q1').innerHTML=chartShell('fq-genes','Median genes per cell','','<b>Fig. R1a.</b> Median detected genes per QC-pass cell, full depth, log scale (n = QC-pass cells protocol<sup>−1</sup>; min_genes ≥ 200). Ordered descending. Not depth-equalised; cf. paper Fig. 2d (20K reads cell<sup>−1</sup> per cell type).','');
   paintLogBars('fq-genes','genes','median_genes',fi);
-  $('#view #q2').innerHTML=chartShell('fq-umis','Median UMIs per cell (log scale)','','<b>Fig. R1b.</b> Same convention as R1a. Depths span 845 UMIs (MARS-seq) to ~54K counts (Smart-seq2 — non-UMI reads, not comparable to UMI counts); among UMI protocols the spread is ~11-fold.','UMI = unique molecular identifier; non-UMI protocols (e.g. Smart-seq2, not yet processed) report reads instead.');
+  $('#view #q2').innerHTML=chartShell('fq-umis','Median UMIs per cell','','<b>Fig. R1b.</b> As R1a for median counts. UMI and read-count protocols estimate distinct quantities and are not directly comparable.','');
   paintLogBars('fq-umis','umis','median_umis',fi);
-  const b=figBubble();$('#view #q3').innerHTML=chartShell('fq-bub','Library complexity: genes vs UMIs','','<b>Fig. R2.</b> Each bubble is a protocol (log–log). Diagonal displacement = efficiency (genes per UMI); bubble area ∝ QC-pass cells. Colour = protocol.','Medians over QC-pass cells; equalised downstream n=1878 but QC metrics computed pre-equalisation. No read-depth downsampling (paper: 20K reads/cell).') ;
+  const b=figBubble();$('#view #q3').innerHTML=chartShell('fq-bub','Genes vs UMIs','','<b>Fig. R2.</b> Median genes versus median counts per QC-pass cell (log–log). Orthogonal displacement from the diagonal estimates genes per count (efficiency); marker area is proportional to QC-pass n.','') ;
   const el=document.getElementById('fq-bub');el.setAttribute('viewBox','0 0 640 300');el.innerHTML=b;
-  const rO=[...D.protocols].sort((a,b)=>a.cells_pass_qc/INPUT(a)-b.cells_pass_qc/INPUT(b));const R3TXT='Retention spans '+(100*rO[0].cells_pass_qc/INPUT(rO[0])).toFixed(0)+'% ('+esc(rO[0].protocol)+') to '+(100*rO[rO.length-1].cells_pass_qc/INPUT(rO[rO.length-1])).toFixed(0)+'% ('+esc(rO[rO.length-1].protocol)+')';const rt=figRetention();const q3b=document.createElement('div');q3b.innerHTML=chartShell('fq-ret','QC retention: input → pass','','<b>Fig. R3.</b> Dashed = input cells in matrix; solid = pass QC (min_genes ≥ 200). '+R3TXT+' — depth and quality are distinct axes.','Mito filter inert (ENSEMBL IDs, median_mito_pct = 0 artefact); retention reflects the min_genes cut only.');
+  const rO=[...D.protocols].sort((a,b)=>a.cells_pass_qc/INPUT(a)-b.cells_pass_qc/INPUT(b));const R3TXT='Retention '+(100*rO[0].cells_pass_qc/INPUT(rO[0])).toFixed(0)+'%–'+(100*rO[rO.length-1].cells_pass_qc/INPUT(rO[rO.length-1])).toFixed(0)+'%';const rt=figRetention();const q3b=document.createElement('div');q3b.innerHTML=chartShell('fq-ret','QC retention','','<b>Fig. R3.</b> Input cells (dashed) versus QC-pass cells (solid) per protocol, log scale; retention = pass/input. Ordered by retention ('+R3TXT+'). Retention indexes the min_genes ≥ 200 rule only (mito filter inoperative).','');
   $('#view #q3').appendChild(q3b);const er=document.getElementById('fq-ret');er.setAttribute('viewBox',`0 0 640 ${rt.H}`);er.innerHTML=rt.svg;
-  if(D.protocols.every(p=>p.qc_dist)){const dg=figDist('genes_q','Genes detected per cell (log scale)');$('#view #q4').innerHTML=chartShell('fq-dg','Per-cell genes detected: distribution (pre-QC, log scale)','','<b>Fig. R6.</b> Whiskers = min–max, box = IQR, thick tick = median, thin ticks = P10/P90 over all input cells. QUARTZseq2 spans 1–16K genes: a heavy low-quality tail the median hides \u2014 this tail is what QC removes ('+R3TXT+').','Pre-QC distributions: pipeline/qc_distributions.py. QC keeps cells with \u2265200 detected genes.');
+  if(D.protocols.every(p=>p.qc_dist)){const dg=figDist('genes_q','Genes detected per cell (log scale)');$('#view #q4').innerHTML=chartShell('fq-dg','Per-cell genes (pre-QC)','','<b>Fig. R6.</b> Pre-QC per-cell gene distributions over all input cells (whiskers, min–max; box, IQR; heavy tick, median; light ticks, P10/P90; log scale).','');
   const ed=document.getElementById('fq-dg');ed.setAttribute('viewBox',`0 0 640 ${dg.H}`);ed.innerHTML=dg.svg;
-  const du=figDist('umis_q','UMIs per cell (log scale)');$('#view #q5').innerHTML=chartShell('fq-du','Per-cell UMIs: distribution (pre-QC, log scale)','','<b>Fig. R7.</b> Same convention. QUARTZseq2 P25 is 141 UMIs against a 5,468 median \u2014 bimodal input (empty droplets + deeply sequenced cells). 10X_V3 has the tightest UMI distribution (IQR 2.6–6.5K); Drop-seq is close behind.','UMI = unique molecular identifier; exonic gene counts from GEO matrices.');
+  const du=figDist('umis_q','UMIs per cell (log scale)');$('#view #q5').innerHTML=chartShell('fq-du','Per-cell UMIs (pre-QC)','','<b>Fig. R7.</b> As R6 for per-cell counts. Bimodality indicates mixture of low-content droplets and sequenced cells.','');
   const eu=document.getElementById('fq-du');eu.setAttribute('viewBox',`0 0 640 ${du.H}`);eu.innerHTML=du.svg;
-  const dm=figDom();$('#view #q6').innerHTML=chartShell('fq-dom','Library concentration: share of counts in top genes','','<b>Fig. R8.</b> Pale = top-200 share, solid = top-50 share. 10X_8x10K_25K most concentrated (45.3% / 23.6%), C1HT_medium most even (17.7% / 7.9%). Genes in \u22653 cells range 22,955 (inDrop) to 38,248 (C1HT_medium) — full ranking in the CSV download (Overview).','Concentration reflects biology plus capture bias; even coverage preserves rare transcripts.');const eo=document.getElementById('fq-dom');eo.setAttribute('viewBox',`0 0 640 ${dm.H}`);eo.innerHTML=dm.svg;}
+  const dm=figDom();$('#view #q6').innerHTML=chartShell('fq-dom','Count concentration','','<b>Fig. R8.</b> Fraction of total counts in the top-50 (solid) and top-200 (pale) expressed genes. Lower concentration favours rare-transcript retention, ceteris paribus.','');const eo=document.getElementById('fq-dom');eo.setAttribute('viewBox',`0 0 640 ${dm.H}`);eo.innerHTML=dm.svg;}
  }
  if(n=='clustering'){const withC=D.protocols.filter(p=>p.cellstat);
   if(withC.length){$('#view #c0').innerHTML=`<div style="display:flex;gap:8px;margin-bottom:10px"><select id="cp">${withC.map((p,i)=>`<option value="${i}">${esc(p.protocol)}</option>`).join('')}</select></div><div id="cb1"></div><div id="cb2"></div>`;
-  const paintC=()=>{const p=withC[+($('#cp').value||0)]||withC[0];
-   for(const [key,id,t,cap] of [['genes','fc-bg','Genes per cell by cluster','<b>Fig. R14.</b> Tukey boxes (log scale) of detected genes per Louvain cluster (t-SNE subset, n='+p.cellstat.genes.length+'). Wide boxes = heterogeneous clusters.'],['umis','fc-bu','UMIs per cell by cluster','<b>Fig. R15.</b> Same cells, total counts. Depth differences between clusters flag composition (cell-type) effects.']]){
-    const b=figClusterBox(p,key,t);$('#view #'+id).innerHTML=chartShell(id.replace('fc-','fq-c'),t,'',''+cap,'Quartiles + 1.5×IQR whiskers on log10 counts; clusters sorted by id.');
+   const paintC=()=>{const p=withC[+($('#cp').value||0)]||withC[0];
+   for(const [key,id,t,cap] of [['genes','fc-bg','Genes per cell by cluster','<b>Fig. R14.</b> Detected genes by Louvain cluster (Tukey boxes, log<sub>10</sub> scale; t-SNE subset). Box width does not encode n.'],['umis','fc-bu','UMIs per cell by cluster','<b>Fig. R15.</b> As R14 for total counts. Between-cluster depth gradients suggest compositional (cell-type) effects.']]){
+    const b=figClusterBox(p,key,t);$('#view #'+id).innerHTML=chartShell(id.replace('fc-','fq-c'),t,'',''+cap,'');
     const el=document.getElementById(id.replace('fc-','fq-c'));el.innerHTML=b.svg;}};
     const paintE=()=>{const p=withC[+($('#cp').value||0)]||withC[0];
    const views=[['tsne','t-SNE'],['pca','PCA'],['umap','UMAP']];
    const cl=[...new Set(((p.tsne||p.pca||{}).cluster)||[])].sort((a,b)=>a-b);
    const cnt={};((p.tsne||p.pca||{}).cluster||[]).forEach(z=>cnt[z]=(cnt[z]||0)+1);
-   $('#view #ce1').innerHTML=`<h2>Embedding gallery: ${esc(p.protocol)} — same cells, three views</h2><div class="card"><div style="display:flex;gap:12px;flex-wrap:wrap">`+views.map(([k,t])=>{const f=figEmbed(p,k,t);
-    const sub=k==='pca'&&p.pca?`PC1 ${(100*p.pca.var[0]).toFixed(1)}%, PC2 ${(100*p.pca.var[1]).toFixed(1)}%`:k==='umap'?(p.umap?'seed '+D.config.seed:'needs umap-learn'):`perplexity ≤ 30, seed ${D.config.seed}`;
-    return `<div style="flex:1;min-width:230px"><div class="figbox"><svg class="chart" viewBox="0 0 ${f.W} ${f.H}">${f.svg}</svg></div><p class="figcap" style="border:none;padding:0"><b>${t}.</b> ${sub} · ${(p.tsne?p.tsne.x.length:0).toLocaleString()} cells</p></div>`;}).join('')+`</div><p class="figcap"><b>Fig. R16a–c.</b> Identical cells and colours across views; PCA shows global variance axes, t-SNE/UMAP neighbourhood structure. `+cl.map(c=>`<span class="pill">cl ${c} (${cnt[c]||0})</span>`).join('')+`</p></div>`;
+   $('#view #ce1').innerHTML=`<h2>${esc(p.protocol)} — embeddings</h2><div class="card"><div style="display:flex;gap:12px;flex-wrap:wrap">`+views.map(([k,t])=>{const f=figEmbed(p,k,t);
+    const sub=k==='pca'&&p.pca?`PC1 ${(100*p.pca.var[0]).toFixed(1)}%, PC2 ${(100*p.pca.var[1]).toFixed(1)}%`:k==='umap'?(p.umap?'':'not available'):`n=${(p.tsne?p.tsne.x.length:0).toLocaleString()}`;
+    return `<div style="flex:1;min-width:230px"><div class="figbox"><svg class="chart" viewBox="0 0 ${f.W} ${f.H}">${f.svg}</svg></div><p class="figcap" style="border:none;padding:0"><b>${t}.</b> ${sub}</p></div>`;}).join('')+`</div><p class="figcap"><b>Fig. R16a–c.</b> Same cells, same colours. `+cl.map(c=>`<span class="pill">cl ${c} (${cnt[c]||0})</span>`).join('')+`</p></div>`;
    const sc2=figScree(p);
-   window.__screeCap=`<b>Fig. R16d.</b> Bars = % variance; orange = cumulative`+(sc2.elbow>=0?`; dashed = first PC reaching 80% (PC${sc2.elbow+1})`:`; 30 PCs capture only ${sc2.tot}% — no 80% elbow in range, typical for sparse scRNA-seq`)+`. ${esc(p.protocol)}.`;
-   $('#view #ce2').innerHTML=chartShell('fq-scree','PCA scree: variance explained','',window.__screeCap,'TruncatedSVD on 2000 HVGs (seed 0); capped at 30 PCs.');
+   window.__screeCap=`<b>Fig. R16d.</b> Per-PC variance explained (bars, %) and cumulative variance (line) from truncated SVD on 2,000 HVGs (seed 0; ≤30 PCs). Dashed line marks the first PC attaining ≥80% cumulative variance where attained. ${esc(p.protocol)}.`;
+   $('#view #ce2').innerHTML=chartShell('fq-scree','PCA scree','',window.__screeCap,'');
    const se=document.getElementById('fq-scree');se.setAttribute('viewBox',`0 0 640 ${sc2.H}`);se.innerHTML=sc2.svg;};
   const paintR=()=>{const cr=figClustRes(),P=D.protocols;
    const a=P.map(p=>Math.log10(p.median_genes)),b=P.map(p=>p.n_clusters),m1=a.reduce((x,y)=>x+y,0)/a.length,m2=b.reduce((x,y)=>x+y,0)/b.length;
    let num=0,d1=0,d2=0;P.forEach((p,i)=>{num+=(a[i]-m1)*(b[i]-m2);d1+=(a[i]-m1)*(a[i]-m1);d2+=(b[i]-m2)*(b[i]-m2);});
    const pr=(num/Math.sqrt(d1*d2)).toFixed(2);
-   $('#view #ce3').innerHTML=chartShell('fq-cres','Resolution vs complexity','','<b>Fig. R17.</b> Louvain communities vs median genes (log); size ∝ subsample stability. Pearson r = '+pr+' — finer partitioning tracks library complexity, not accuracy.','Equalised n='+D.cells_per_protocol.toLocaleString()+' cells; Louvain res 1.0, k=15.');const er=document.getElementById('fq-cres');er.setAttribute('viewBox',`0 0 ${cr.W} ${cr.H}`);er.innerHTML=cr.svg;};
-  paintC();paintE();paintR();$('#cp').onchange=()=>{paintC();paintE();};}const st=figStability();$('#view #c1').innerHTML=chartShell('fc-stab','Clustering stability: ARI vs 80% subsamples','','<b>Fig. R4a.</b> Mean ± SD over '+D.config.stability_repeats+' repeats (seed '+D.config.seed+'). High values (&gt;0.8) indicate precise, not necessarily accurate, partitions.','ARI = adjusted Rand index between full-data Louvain labels and re-clustered 80% subsamples (re-embedded + re-clustered). Compares a clustering to itself, unlike paper Fig. 4b accuracy vs matchSCore2.');
+   $('#view #ce3').innerHTML=chartShell('fq-cres','Communities vs genes','','<b>Fig. R17.</b> Louvain partition count (k; res = 1.0, kNN = 15) versus median genes cell<sup>−1</sup> (log<sub>10</sub>). Marker area encodes subsample stability. Pearson r = '+pr+' (n = '+P.length+' protocols). Association does not identify accuracy.','');const er=document.getElementById('fq-cres');er.setAttribute('viewBox',`0 0 ${cr.W} ${cr.H}`);er.innerHTML=cr.svg;};
+  paintC();paintE();paintR();$('#cp').onchange=()=>{paintC();paintE();};}const st=figStability();$('#view #c1').innerHTML=chartShell('fc-stab','Clustering stability','','<b>Fig. R4a.</b> Mean ARI between full-data Louvain labels and 80% subsample re-clusterings (5 seeded repeats; error bars, ±1 SD; axis 0.5–1.0). High values denote precision under resampling, not agreement with ground truth.','');
   const es=document.getElementById('fc-stab');es.setAttribute('viewBox',`0 0 640 ${st.H}`);es.innerHTML=st.svg;}
  if(n=='markers'){const withM=D.protocols.filter(p=>p.markers&&p.markers.genes&&p.markers.genes.length);
   if(withM.length){const paint=()=>{const p=withM[+($('#mp').value||0)]||withM[0],fb=figMarkers(p);
-   $('#view #mwrap').innerHTML=chartShell('fm-main','Cluster markers: '+p.protocol+' (dot plot)','','<b>Fig. R10.</b> Union top-5 markers per cluster ('+fb.H+' px tall figure; '+Object.keys(p.markers.clusters).length+' clusters). Score=(mean<sub>in</sub>−mean<sub>out</sub>)×fraction expressing; HVG space, equalised cells.','Top markers are descriptive, not validated cell-type markers (no reference labels). ENSEMBL IDs map to symbols via pipeline/map_symbols.py when resolvable.');const el=document.getElementById('fm-main');el.setAttribute('viewBox',`0 0 ${fb.W} ${fb.H}`);el.innerHTML=fb.svg;};
+   $('#view #mwrap').innerHTML=chartShell('fm-main','Markers: '+p.protocol,'','<b>Fig. R10.</b> Union of per-cluster top-5 markers ('+Object.keys(p.markers.clusters).length+' Louvain clusters; score = (mean<sub>in</sub> − mean<sub>out</sub>) × fraction expressing, log1p CP10K HVG space, equalised cells). Diameter, fraction expressing; shade, gene-normalised mean. Descriptive candidates, not validated cell-type markers.','');const el=document.getElementById('fm-main');el.setAttribute('viewBox',`0 0 ${fb.W} ${fb.H}`);el.innerHTML=fb.svg;};
   paint();$('#mp').onchange=paint;}}
  if(n=='similarity'&&D.similarity&&D.similarity.correlation){const S=D.similarity,fc=figCorr();
   const off=fc.lo.toFixed(2);
-  $('#view #s1').innerHTML=chartShell('fs-corr','Cross-protocol correlation (common genes)','','<b>Fig. R11.</b> Pearson r of mean log1p-C P10K expression over '+S.genes_common.toLocaleString()+' common genes ('+S.qc_note+'). Rows/cols ordered by composite rank; shade scaled '+off+'–1.00. Hover a cell for its value.','Depth normalisation removes the Smart-seq2/C1HT read-count advantage before correlating.');
+  $('#view #s1').innerHTML=chartShell('fs-corr','Cross-protocol correlation','','<b>Fig. R11.</b> Pearson r of mean log1p CP10K expression over '+S.genes_common.toLocaleString()+'Intersected genes ('+S.qc_note+'). Rows/columns ordered by composite rank; shade scaled '+off+'–1.00. Depth normalisation precedes correlation.','');
   const ec=document.getElementById('fs-corr');ec.setAttribute('viewBox',`0 0 ${fc.W} ${fc.H}`);ec.innerHTML=fc.svg;
   const fm=figCum(),top=[...simOrder()].sort((a,b)=>S.cumulative[b][99]-S.cumulative[a][99]);
-  $('#view #s2').innerHTML=chartShell('fs-cum','Cumulative genes over 100 cells','','<b>Fig. R12.</b> Union detected genes as cells accumulate (mean of 3 shuffles). Leader: '+esc(top[0])+' ('+S.cumulative[top[0]][99].toLocaleString()+'); trailer: '+esc(top[top.length-1])+' ('+S.cumulative[top[top.length-1]][99].toLocaleString()+'). Steeper = more complexity per cell.','Sampled QC-pass cells (seed 0); curves saturate as the shared gene pool exhausts.');
+  $('#view #s2').innerHTML=chartShell('fs-cum','Cumulative genes','','<b>Fig. R12.</b> Union detected genes over 1–100 sampled QC-pass cells (mean of 3 seeded shuffles). Slope estimates per-cell complexity; plateau reflects exhaustion of the shared pool.','');
   const eu=document.getElementById('fs-cum');eu.setAttribute('viewBox',`0 0 ${fm.W} ${fm.H}`);eu.innerHTML=fm.svg;}
- if(n=='benchmark'){const fb=figBench();$('#view #b1').innerHTML=`<h2>Benchmark summary (Fig. 6 style)</h2><div class="card"><div class="figbox"><svg class="chart" id="fb-main" viewBox="0 0 640 ${fb.H}" role="img">${fb.svg}</svg></div><button class="btn" onclick="dlSvg('fb-main','benchmark.svg')">Download SVG</button><p class="figcap"><b>Fig. R5.</b> Dot size/opacity = min–max normalised score per column; orange = arithmetic-mean composite. Right annotation = paper Fig. 6 rank among 13 protocols.</p><details><summary>Methods &amp; provenance</summary>Normalisation is per-column min–max over the ${D.protocols.length} processed protocols only; adding protocols will rescale scores. Paper composite averages 6 metrics (gene detection, signature expression, clusterability, integrated clusterability, mixability, mappability); ours uses 5 available full-depth metrics. Median UMIs mixes UMI counts with Smart-seq2 read counts (non-UMI), inflating its depth score — the paper avoids this by equalising to 20K reads. The paper used a harmonic mean, which penalises uneven profiles but degenerates to 0 whenever min–max normalisation assigns an exact 0 (guaranteed with only 3 protocols); the arithmetic mean is shown for that reason and converges to the same ranking here.</details></div>`;}
- if(n=='benchmark'){const fb2=figBump();const w=document.createElement('div');w.innerHTML=chartShell('fb-bump','Rank agreement: paper vs replication','','<b>Fig. R9.</b> Left: paper Fig. 6 rank among 13 protocols. Right: our composite rank among ${D.protocols.length}. Crossings are informative, not errors: Smart-seq2 outranks Quartz-seq2 only via non-UMI read depth, and inDrop/Drop-seq swap within noise. 10X_V3 excluded (postdates the paper, unranked); both 10X V2 designs share paper rank 2.','Top tier agrees; absolute scores are not comparable; absolute scores are not comparable (different metric sets, full-depth vs 20K-equalised).');$('#view').appendChild(w);const eb=document.getElementById('fb-bump');eb.setAttribute('viewBox','0 0 640 '+fb2.H);eb.innerHTML=fb2.svg;}
- if(n=='explorer'){$('#sp').onchange=$('#sc').onchange=$('#sv').onchange=draw;draw();}}
+ if(n=='benchmark'){const fb=figBench();$('#view #b1').innerHTML=`<h2>Benchmark summary</h2><div class="card"><div class="figbox"><svg class="chart" id="fb-main" viewBox="0 0 640 ${fb.H}" role="img">${fb.svg}</svg></div><button class="btn" onclick="dlSvg('fb-main','benchmark.svg')">Download SVG</button><p class="figcap"><b>Fig. R5.</b> Per-metric min–max normalised scores (diameter/opacity) and arithmetic-mean composite (orange) over ${D.protocols.length} processed protocols. Right annotation, paper Fig. 6 rank (of 13). Scores are relative to the processed set; absolute values are not transportable to the paper (different metric set and depth standardisation).</p><details><summary>Method</summary>Five full-depth metrics; mito and label-based metrics excluded. The paper reports six metrics at 20K reads cell<sup>−1</sup> with a harmonic mean; the arithmetic mean is used here because min–max normalisation over small protocol sets otherwise degenerates. Non-UMI read counts inflate the depth column for Smart-seq2/C1HT.</details></div>`;}
+ if(n=='benchmark'){const fb2=figBump();const w=document.createElement('div');w.innerHTML=chartShell('fb-bump','Paper vs replication rank','','<b>Fig. R9.</b> Paper Fig. 6 rank (left, of 13) versus replication composite rank (right, of ${D.protocols.length}). Crossings denote rank instability under metric and depth-standardisation differences, not adjudicated errors. 10X_V3 postdates the paper (unranked).','');$('#view').appendChild(w);const eb=document.getElementById('fb-bump');eb.setAttribute('viewBox','0 0 640 '+fb2.H);eb.innerHTML=fb2.svg;}
+  if(n=='generalizability'){paintGeneralizability();}
+  if(n=='signatures'){paintSignatures();}
+  if(n=='paper'&&D.paper){const P=D.paper;
+   if(P.composition){const rows=[...D.protocols].sort((a,b)=>b.median_genes-a.median_genes).map(p=>({name:p.protocol,fracs:P.composition[p.protocol]||{},suffix:'<span class="mut">'+fi(p.cells_pass_qc)+' QC</span>'}));
+    const b=figStacked(rows,['Human','Mouse','Doublet','Dog'],SPCCOL);
+    $('#view #p1').innerHTML=chartShell('fp-comp','Species composition per protocol','','<b>Fig. P1 (paper Fig. 1).</b> Share of Human/Mouse/Doublet/Dog cells per protocol from the GEO reference labels. The design aimed at PBMC 60% / colon 30% / HEK293T 6% / NIH3T3 3% / MDCK 1%; deviations flag capture bias (e.g. fragile colon cells) or viability sorting, as the paper discusses.','Fractions over labelled cells in metadata.csv; Dog = MDCK spike-ins, Doublet = human+mouse events.');
+    const el=document.getElementById('fp-comp');el.setAttribute('viewBox',`0 0 640 ${b.H}`);el.innerHTML=b.svg;}
+   if(P.mapping){const rows=[...D.protocols].sort((a,b)=>b.median_genes-a.median_genes).filter(p=>P.mapping[p.protocol]&&Object.values(P.mapping[p.protocol]).some(v=>v!=null&&isFinite(v))).map(p=>({name:p.protocol,fracs:P.mapping[p.protocol]}));
+    if(rows.length){const b=figStacked(rows,['exonic','intronic','intergenic','unmapped'],MAPCOL);
+    $('#view #p2').innerHTML=chartShell('fp-map','Read mapping by genomic location','','<b>Fig. P2 (paper Fig. 1).</b> Mean share of reads mapping to exons / introns / intergenic regions / unmapped, from the GEO per-cell QC supplements. Single-nucleus data enriches intronic reads (unprocessed nuclear RNA), as in the paper.','Per-cell nExonReads/nIntronReads/nIntergenicReads/nUnmappedReads averaged per protocol; see pipeline/paper_figures.py.');
+    const el=document.getElementById('fp-map');el.setAttribute('viewBox',`0 0 640 ${b.H}`);el.innerHTML=b.svg;}}
+   const paintDepth=()=>{const m=($('#pdep')&&$('#pdep').value)||'all';const b=figDepth(m);
+    if(b){$('#view #p3').innerHTML=chartShell('fp-depth','Genes detected at equalised depth'+(m==='all'?'':' ('+m+' cells)')+'','','<b>Fig. P3 (paper Fig. 2d–e).</b> Median genes detected after thinning every cell to the same UMI depth (x axis, log). Depth-equalised comparison removes the read-depth advantage (cf. Fig. R1 full-depth medians). Selector splits Human/Mouse cells; the paper splits HEK293T/monocyte/B-cell references instead.','Binomial thinning (seeded) of QC-pass cells, ≤60/protocol; medians need ≥1 cell (Human/Mouse ≥5) at that depth.');
+    $('#view #p3').insertAdjacentHTML('afterbegin',`<div style="display:flex;gap:8px;margin-bottom:10px"><select id="pdep"><option value="all">Cells: all</option><option value="Human">Cells: Human</option><option value="Mouse">Cells: Mouse</option></select></div>`);
+    $('#pdep').value=m;$('#pdep').onchange=paintDepth;
+    const el=document.getElementById('fp-depth');el.setAttribute('viewBox',`0 0 640 ${b.H}`);el.innerHTML=b.svg;}};
+   paintDepth();
+   if(P.dropout){const b=figDropout();
+    if(b){$('#view #p4').innerHTML=chartShell('fp-drop','Dropout probability vs expression','','<b>Fig. P4 (paper Fig. 2f).</b> Fraction of zero counts per gene (y) against mean expression (log1p CP10K, binned; x). Lower curves = fewer dropouts at the same expression level. Empirical analogue of the paper\'s SCDE model-based curves.','≤60 QC-pass cells/protocol; 10 expression deciles; genes with zero mean excluded.');const el=document.getElementById('fp-drop');el.setAttribute('viewBox',`0 0 640 ${b.H}`);el.innerHTML=b.svg;}}
+   const paintJoint=()=>{const m=($('#pjnt')&&$('#pjnt').value)||'protocol';const b=figJoint(m);
+    if(b){$('#view #p5').innerHTML=chartShell('fp-joint','Joint HVG-PCA across protocols'+(m==='protocol'?'':m==='species'?' (by species)':' (by genes/cell)')+'','','<b>Fig. P5 (paper Fig. 3a–b).</b> PCA on highly variable genes over the joint, depth-normalised matrix (≤100 QC cells/protocol, '+D.paper.joint.n_genes_common.toLocaleString()+' common genes). Colour by protocol (technical structure) or species/genes (biology vs depth). Protocol-driven separation here mirrors the paper\'s finding that protocol explains 36–53% of variance.','log1p CP10K → top-2000 variance genes → 30 PCs; PC1/PC2 shown with variance shares.');
+    $('#view #p5').insertAdjacentHTML('afterbegin',`<div style="display:flex;gap:8px;margin-bottom:10px"><select id="pjnt"><option value="protocol">Colour: protocol</option><option value="species">Colour: species label</option><option value="genes">Colour: genes/cell</option></select></div>`);
+    $('#pjnt').value=m;$('#pjnt').onchange=paintJoint;
+    const el=document.getElementById('fp-joint');el.setAttribute('viewBox',`0 0 640 ${b.H}`);el.innerHTML=b.svg;
+    $('#fp-joint').insertAdjacentHTML('afterend',`<div class="lg">${b.leg}</div>`);}};
+   if(P.joint)paintJoint();
+   if(P.mixability){const b=figMix();
+    $('#view #p6').innerHTML=chartShell('fp-mix','Protocol mixability (kBET-style)','','<b>Fig. P6 (paper Fig. 5g–h).</b> Share of joint-space neighbourhoods whose protocol composition rejects the global mix (χ², α=0.05): lower = protocols intermingle, higher = protocol-specific pockets. Overall rejection '+((100*P.mixability.overall_rejection).toFixed(1))+'%. Lightweight analogue of the paper\'s kBET + Seurat/Harmony/scMerge integration assessment.','k=25 neighbours on 30 joint PCs; expected counts from global protocol shares; cf. pipeline/paper_figures.py.');
+    const el=document.getElementById('fp-mix');el.setAttribute('viewBox',`0 0 640 ${b.H}`);el.innerHTML=b.svg;}}
+  if(n=='explorer'){$('#sp').onchange=$('#sc').onchange=$('#sv').onchange=draw;draw();}}
 let SPECIES='human';
 const SRC={
  human:{urls:['data/results.json','./data/results.json','site/data/results.json'],emb:'RESULTS',kind:'human PBMC + spike-ins'},
@@ -472,17 +873,12 @@ function boot(d,src){D=d;if(!D.protocols||!D.protocols.length)throw new Error('e
  $('#tabs').innerHTML=Object.keys(T).map(k=>`<button data-t="${k}">${k[0].toUpperCase()+k.slice(1)}</button>`).join('');
  document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>show(b.dataset.t));
  document.querySelectorAll('#spec button').forEach(b=>{b.classList.toggle('on',b.dataset.s===SPECIES);b.onclick=()=>setSpecies(b.dataset.s);});
- $('#tabs').insertAdjacentHTML('beforebegin',`<div class="mut">Data source: <b>${esc(src)}</b> · ${esc(SRC[SPECIES].kind)} · generated ${esc(D.generated||'unknown')} · <a href="methodology.html">how it works</a>${SPECIES==='mouse'?' · <b>paper Fig. 6 ranks are human-derived</b>':''}</div>`);
- if(demo)$('#tabs').insertAdjacentHTML('beforebegin','<div class="warn">SYNTHETIC DEMO DATA: generated to test the pipeline. These are NOT results from GSE133549.</div>');
+  $('#tabs').insertAdjacentHTML('beforebegin',`<div class="mut">${esc(SRC[SPECIES].kind)} · ${esc(D.generated||'unknown')}</div>`);
+ if(demo)$('#tabs').insertAdjacentHTML('beforebegin','<div class="warn">Synthetic demo data — not GSE133549.</div>');
  show(window.__tab||'overview');
  if(!demo){const P=[...D.protocols].sort((a,b)=>b.median_genes-a.median_genes);const f=$('#findings');
-  if(f){const g0=P[0],g1=P[P.length-1];const rOrd=[...D.protocols].sort((a,b)=>a.cells_pass_qc/INPUT(a)-b.cells_pass_qc/INPUT(b)),rLo=rOrd[0],rHi=rOrd[rOrd.length-1];const eff=[...D.protocols].sort((a,b)=>b.median_genes/b.median_umis-a.median_genes/a.median_umis)[0];
-  let extra='';
-  if(D.similarity){const S=D.similarity;let bi0=0,bi1=1,bv=2;
-   S.correlation.forEach((row,i)=>row.forEach((v,j)=>{if(i!==j&&v<bv){bv=v;bi0=i;bi1=j;}}));
-   const st=[...D.protocols].sort((a,b)=>a.stability_mean-b.stability_mean);
-   extra='<li><b>Least alike pair:</b> '+esc(S.order[bi0])+' × '+esc(S.order[bi1])+' (r='+bv.toFixed(2)+' over '+S.genes_common.toLocaleString()+' common genes).</li><li><b>Stability outlier:</b> '+esc(st[0].protocol)+' ('+st[0].stability_mean.toFixed(2)+') vs '+esc(st[st.length-1].protocol)+' ('+st[st.length-1].stability_mean.toFixed(2)+').</li>';}
-  f.innerHTML='<ol style="margin:6px 0;padding-left:20px"><li><b>Complexity ranking broadly reproduces the paper (Fig. 6):</b> '+P.map(p=>esc(p.protocol)).join(' &gt; ')+' by median genes/cell ('+P.map(p=>fi(p.median_genes)).join(' / ')+').</li><li><b>Depth gap is large:</b> '+esc(g0.protocol)+' yields '+(g0.median_genes/g1.median_genes).toFixed(1)+'&times; the genes and '+(g0.median_umis/g1.median_umis).toFixed(1)+'&times; the UMIs of '+esc(g1.protocol)+' — on full-depth counts (paper: 20K-read equalised).</li><li><b>Efficiency paradox:</b> '+esc(eff.protocol)+' gives the most genes per 1K UMIs; the deepest protocol saturates fastest.</li><li><b>Retention ≠ complexity:</b> QC-pass rates span '+(100*rLo.cells_pass_qc/INPUT(rLo)).toFixed(1)+'% ('+esc(rLo.protocol)+') to '+(100*rHi.cells_pass_qc/INPUT(rHi)).toFixed(1)+'% ('+esc(rHi.protocol)+') — depth and cell quality are distinct axes.</li><li><b>Clusters are stable but unverified:</b> subsample ARI '+Math.min(...D.protocols.map(p=>p.stability_mean)).toFixed(2)+'–'+Math.max(...D.protocols.map(p=>p.stability_mean)).toFixed(2)+' with no reference labels, so accuracy vs cell types is unknown.</li>'+extra+'</ol>';}}}
+  if(f){const g0=P[0],g1=P[P.length-1];
+  f.innerHTML='<ol style="margin:6px 0;padding-left:20px"><li>Ranking by median genes/cell: '+P.map(p=>esc(p.protocol)).join(' &gt; ')+'.</li><li>Depth range: '+esc(g0.protocol)+' '+(g0.median_genes/g1.median_genes).toFixed(1)+'× genes and '+(g0.median_umis/g1.median_umis).toFixed(1)+'× counts vs '+esc(g1.protocol)+' (full-depth).</li><li>Stability (subsample ARI): '+Math.min(...D.protocols.map(p=>p.stability_mean)).toFixed(2)+'–'+Math.max(...D.protocols.map(p=>p.stability_mean)).toFixed(2)+'; label agreement (ARI/NMI) vs GEO species-mix labels on the Clustering tab.</li></ol>';}}}
 const TRY=[];
 async function load(url){TRY.push(url);const r=await fetch(url);if(!r.ok)throw new Error(url+' → HTTP '+r.status);return r.json();}
 async function loadSpecies(sp){TRY.length=0;const S=SRC[sp];let last=new Error('not attempted');
@@ -492,7 +888,7 @@ async function loadSpecies(sp){TRY.length=0;const S=SRC[sp];let last=new Error('
  throw last;}
 async function setSpecies(sp){if(sp===SPECIES&&D&&D.protocols.length)return;SPECIES=sp;window.__tab=window.__tab||'overview';
  try{const r=await loadSpecies(sp);boot(r.d,r.src);}catch(e){fail(e);}}
-function fail(e){$('#view').innerHTML=`<div class="warn">Could not load any data.</div><div class="card"><b>Diagnostics</b><br><span class="mut">Tried: ${TRY.map(esc).join(', ')||'fetch unavailable (file:// ?)'} · embedded fallback: ${(window.RESULTS&&window.RESULTS.protocols||[]).length} human / ${(window.RESULTS_MOUSE&&window.RESULTS_MOUSE.protocols||[]).length} mouse protocols · error: ${esc(String((e&&e.message)||e))}</span><br><br><b>Fixes:</b><ol><li>Serve the <code>site/</code> folder: from the repo root run <code>bash run.sh serve</code>, then open <code>http://localhost:8000</code>. Do <b>not</b> double-click index.html (<code>file://</code> blocks data loading).</li><li>Serving the repo root instead? Open <code>http://localhost:8000/site/</code>.</li><li>Preview layout with synthetic data: add <code>?demo</code> to the URL.</li></ol></div>`;}
+function fail(e){$('#view').innerHTML=`<div class="warn">Could not load data.</div><div class="card"><b>Fix</b><ol><li>Run <code>bash run.sh serve</code> and open <code>http://localhost:8000</code>.</li><li>Do not double-click index.html (file:// blocks loading).</li></ol><span class="mut">${esc(String((e&&e.message)||e))}</span></div>`;}
 (async()=>{try{
  if(demo){try{const r=await load('data/demo.json');return boot(r,'data/demo.json');}catch(e){if(window.DEMO&&window.DEMO.protocols.length)return boot(window.DEMO,'embedded demo.js (offline fallback)');throw e;}}
  const r=await loadSpecies(SPECIES);boot(r.d,r.src);
@@ -502,4 +898,31 @@ function dlSvg(id,name){const el=document.getElementById(id);
  const vb=el.getAttribute('viewBox').split(' '),W=+vb[2],H=+vb[3];
  const inner=el.innerHTML.replace(/var\(--fg\)/g,'#1c1c1a').replace(/var\(--mut\)/g,'#6b6b66').replace(/var\(--ac\)/g,'#0f6e56').replace(/var\(--grid\)/g,'#dcdcd2').replace(/var\(--bg\)/g,'#ffffff').replace(/var\(--bd[12]?\)/g,'#e4e3dc');
  const doc='<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+W+' '+H+'"><style>text{font-family:Helvetica,Arial,sans-serif;font-size:12px;fill:#555}</style><rect width="'+W+'" height="'+H+'" fill="#ffffff"/>'+inner+'</svg>';const b=new Blob([doc],{type:'image/svg+xml'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);}
+function dlText(name,text,mime){const b=new Blob([text],{type:mime||'text/plain'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);}
+function csvQ(v){v=v==null?'':String(v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;}
+function dataTable(headers,rows){return `<div class="wrap"><table><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr>${rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</table></div>`;}
+function metricsRow(p){const inp=INPUT(p);return {protocol:p.protocol,input_cells:inp,cells_pass_qc:p.cells_pass_qc,retention:inp?p.cells_pass_qc/inp:NaN,median_genes:p.median_genes,median_umis:p.median_umis,median_mito_pct:p.median_mito_pct,genes_per_1k:p.median_genes/Math.max(1,p.median_umis)*1000,n_clusters:p.n_clusters,stability_mean:p.stability_mean,stability_sd:p.stability_sd||0,ari:p.ari,nmi:p.nmi,silhouette:p.silhouette,label_coverage:p.label_coverage||0,union_markers:(p.markers&&p.markers.genes||[]).length};}
+function dlCsv(){const R=D.protocols.map(metricsRow);if(!R.length)return;const cols=Object.keys(R[0]);
+ dlText(SPECIES+'-metrics.csv',cols.join(',')+'\n'+R.map(r=>cols.map(k=>{const v=r[k];return csvQ(typeof v==='number'?(isFinite(v)?+v.toFixed(4):''):v);}).join(',')).join('\n'),'text/csv');}
+function dlJson(){dlText(SPECIES+'-results.json',JSON.stringify(D),'application/json');}
+function dlMarkers(){const rows=[['protocol','cluster','rank','gene','symbol','mean_log1p_CP10K','frac_expressing']];
+ D.protocols.forEach(p=>{if(!p.markers)return;const sym=(p.markers.symbols||{});
+  Object.entries(p.markers.top||{}).forEach(([c,idxs])=>{const cl=p.markers.clusters[c];if(!cl)return;
+   idxs.forEach((gi,r)=>{rows.push([p.protocol,c,r+1,p.markers.genes[gi],sym[p.markers.genes[gi]]||'',+cl.means[gi].toFixed(4),+cl.fracs[gi].toFixed(4)]);});});});
+ dlText(SPECIES+'-markers.csv',rows.map(r=>r.map(csvQ).join(',')).join('\n'),'text/csv');}
+function dlComp(){const cats=['Human','Mouse','Doublet','Dog'];const rows=[['protocol'].concat(cats.map(k=>k+'_share'))];
+ D.protocols.forEach(p=>{const c=p.composition||{},t=Object.values(c).reduce((a,v)=>a+v,0)||1;
+  rows.push([p.protocol].concat(cats.map(k=>+((c[k]||0)/t).toFixed(4))));});
+ dlText(SPECIES+'-composition.csv',rows.map(r=>r.map(csvQ).join(',')).join('\n'),'text/csv');}
+function dlCorr(){if(!D.similarity||!D.similarity.correlation)return;const S=D.similarity;
+ const rows=[['protocol'].concat(S.order)];S.order.forEach((a,i)=>rows.push([a].concat(S.correlation[i].map(v=>+v.toFixed(4)))));
+ dlText(SPECIES+'-correlation.csv',rows.map(r=>r.map(csvQ).join(',')).join('\n'),'text/csv');}
+function dlCum(){if(!D.similarity||!D.similarity.cumulative)return;const S=D.similarity,ord=Object.keys(S.cumulative);
+ const rows=[['cells_sampled'].concat(ord)];for(let k=0;k<100;k++)rows.push([k+1].concat(ord.map(n=>S.cumulative[n][k])));
+ dlText(SPECIES+'-cumulative.csv',rows.map(r=>r.map(csvQ).join(',')).join('\n'),'text/csv');}
+function dlQc(){const rows=[['protocol','input_cells','genes_total_1cell','genes_total_3cells','genes_min','genes_p10','genes_p25','genes_med','genes_p75','genes_p90','genes_max','umis_min','umis_p10','umis_p25','umis_med','umis_p75','umis_p90','umis_max','top50_share','top200_share','top5_genes']];
+ D.protocols.forEach(p=>{const q=p.qc_dist;if(!q)return;
+  rows.push([p.protocol,q.input_cells,q.genes_total_1cell,q.genes_total_3cells].concat(q.genes_q.map(v=>+v.toFixed(1)),q.umis_q.map(v=>+v.toFixed(1)),[+q.top50_share.toFixed(4),+q.top200_share.toFixed(4),(q.top5_genes||[]).join(';')]));});
+ if(rows.length<2)return;
+ dlText(SPECIES+'-qc-distributions.csv',rows.map(r=>r.map(x=>csvQ(typeof x==='number'?(isFinite(x)?x:''):x)).join(',')).join('\n'),'text/csv');}
 </script></body></html>
